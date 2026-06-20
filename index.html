@@ -4,12 +4,15 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Eternaura · IA Educativa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:          #0d0f14;
+  --bg:          #0a0c11;
   --surface:     #13161e;
   --surface-2:   #1a1e29;
   --surface-3:   #212638;
@@ -20,6 +23,8 @@
   --text-muted:  #555f7a;
   --accent:      #7c6af7;
   --accent-dim:  rgba(124,106,247,.13);
+  --teal:        #2dd4bf;
+  --teal-dim:    rgba(45,212,191,.13);
   --green:       #3ecf7e;
   --green-dim:   rgba(62,207,126,.12);
   --amber:       #f5a623;
@@ -29,20 +34,50 @@
   --blue:        #3b9eff;
   --blue-dim:    rgba(59,158,255,.12);
   --sidebar-w:   272px;
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font:    'Inter', system-ui, -apple-system, sans-serif;
+  --display: 'Fraunces', Georgia, serif;
 }
 
 html, body { height: 100%; overflow: hidden; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; position: relative; }
 
-.app { display: flex; height: 100vh; overflow: hidden; }
+/* ── Aurora: identidad visual de fondo, ligada al nombre Eternaura ── */
+.aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.aurora::before, .aurora::after { content: ''; position: absolute; border-radius: 50%; filter: blur(90px); opacity: .16; }
+.aurora::before {
+  width: 56vw; height: 56vw; top: -22vw; left: -14vw;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  animation: aurora-drift-a 26s ease-in-out infinite alternate;
+}
+.aurora::after {
+  width: 50vw; height: 50vw; bottom: -20vw; right: -12vw;
+  background: radial-gradient(circle, var(--teal) 0%, transparent 70%);
+  animation: aurora-drift-b 32s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift-a { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(6vw,4vw) scale(1.12)} }
+@keyframes aurora-drift-b { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-5vw,-6vw) scale(1.08)} }
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before, .aurora::after { animation: none; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+.app { display: flex; height: 100vh; overflow: hidden; position: relative; z-index: 1; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 
 /* ── Sidebar ── */
 .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .sb-logo { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.logo-name { font-size: 18px; font-weight: 700; letter-spacing: -.5px; color: var(--text); }
+.logo-name { font-family: var(--display); font-size: 19px; font-weight: 600; letter-spacing: -.3px; color: var(--text); }
 .logo-name span { color: var(--accent); }
 .logo-tag { font-size: 10px; color: var(--text-muted); letter-spacing: .12em; text-transform: uppercase; margin-top: 1px; }
+
+/* ── Profile chip (sidebar) ── */
+.sb-profile-chip { display: flex; align-items: center; gap: 9px; padding: 11px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.profile-avatar-sm { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 600; font-size: 13px; color: #0a0c11; flex-shrink: 0; }
+.sb-profile-text { min-width: 0; flex: 1; }
+.sb-profile-name { font-size: 12.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-profile-switch { background: none; border: none; padding: 0; color: var(--text-muted); font-size: 10.5px; cursor: pointer; font-family: var(--font); text-decoration: underline; text-underline-offset: 2px; }
+.sb-profile-switch:hover { color: var(--teal); }
 
 .sb-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 16px; }
 .sb-body::-webkit-scrollbar { width: 3px; }
@@ -75,7 +110,32 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .doc-badge { font-size: 10px; color: var(--amber); background: var(--amber-dim); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
 .proc-msg { font-size: 11px; color: var(--blue); margin-top: 5px; display: none; }
 
-/* Config tag */
+/* ── Profile gate (selector de alumno) ── */
+.profile-gate { position: fixed; inset: 0; background: rgba(7,8,12,.92); backdrop-filter: blur(10px); z-index: 250; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .25s; overflow-y: auto; padding: 40px 20px; }
+.profile-gate.open { opacity: 1; pointer-events: auto; }
+.profile-gate-box { width: 560px; max-width: 100%; margin: auto; position: relative; }
+.profile-gate-close { position: absolute; top: -6px; right: -6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 16px; align-items: center; justify-content: center; }
+.profile-gate-close:hover { color: var(--text); }
+.profile-gate-title { font-family: var(--display); font-size: 26px; font-weight: 600; text-align: center; margin-bottom: 4px; }
+.profile-gate-title span { color: var(--accent); }
+.profile-gate-sub { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 26px; }
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 22px; max-height: 280px; overflow-y: auto; padding: 2px; }
+.profile-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px; cursor: pointer; font-family: var(--font); text-align: center; transition: all .15s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.profile-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.profile-avatar { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 600; font-size: 18px; color: #0a0c11; }
+.profile-card-name { font-size: 12.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.profile-card-meta { font-size: 10px; color: var(--text-muted); }
+.profile-create { background: var(--surface); border: 1px solid var(--border-2); border-radius: 14px; padding: 18px; }
+.profile-create-label { font-size: 11px; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+.color-picker { display: flex; gap: 8px; margin: 12px 0 16px; }
+.color-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: all .15s; padding: 0; }
+.color-swatch.picked { border-color: var(--text); transform: scale(1.12); }
+
+/* ── Knowledge map ── */
+.kmap-legend { display: flex; gap: 16px; justify-content: center; margin-top: 10px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+.kmap-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.kmap-node circle { transition: r .2s; }
+.kmap-node:hover circle:first-child { filter: brightness(1.3); }
 .config-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
 .config-tag.active { background: var(--green-dim); color: var(--green); }
 .config-tag.default { background: var(--surface-2); color: var(--text-muted); }
@@ -135,6 +195,11 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .import-export label, .import-export button { flex: 1; }
 .doc-progress { height: 2px; background: var(--border); border-radius: 1px; margin-top: 4px; overflow: hidden; }
 .doc-progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+.student-row { display: flex; align-items: center; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; }
+.student-info { flex: 1; min-width: 0; }
+.student-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.student-meta { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+.students-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
 
 /* ── Main ── */
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
@@ -158,7 +223,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; gap: 10px; }
 .welcome-icon { font-size: 40px; animation: float 3s ease-in-out infinite; }
 @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-.welcome-title { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
+.welcome-title { font-family: var(--display); font-size: 24px; font-weight: 600; letter-spacing: -.3px; }
 .welcome-title span { color: var(--accent); }
 .welcome-sub { font-size: 13px; color: var(--text-muted); max-width: 420px; line-height: 1.6; }
 .starters { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 10px; }
@@ -219,6 +284,24 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 </head>
 <body>
 
+<div class="aurora"></div>
+
+<!-- Profile gate: selección/creación de perfil de alumno -->
+<div class="profile-gate" id="profile-gate">
+  <div class="profile-gate-box">
+    <button class="profile-gate-close" id="profile-gate-close" onclick="document.getElementById('profile-gate').classList.remove('open')">×</button>
+    <div class="profile-gate-title">¿Quién va a <span>estudiar</span> hoy?</div>
+    <div class="profile-gate-sub">Cada alumno tiene su propio progreso, guardado en este dispositivo</div>
+    <div class="profile-grid" id="profile-grid"></div>
+    <div class="profile-create">
+      <div class="profile-create-label">Crear nuevo perfil</div>
+      <input class="field-input" id="new-profile-name" placeholder="Nombre del alumno…" onkeydown="if(event.key==='Enter')createProfileFlow()"/>
+      <div class="color-picker" id="color-picker"></div>
+      <button class="btn-primary" style="width:100%" onclick="createProfileFlow()">Crear perfil y empezar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Password gate -->
 <div class="pwd-gate" id="pwd-gate">
   <div class="pwd-box">
@@ -275,16 +358,14 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     </div>
 
     <div class="modal-section">
-      <div class="modal-label">Modelo de IA</div>
-      <select class="model-select" id="cfg-model">
-        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (recomendado, gratuito)</option>
-        <option value="meta-llama/llama-4-maverick:free">Llama 4 Maverick (gratuito)</option>
-        <option value="google/gemini-flash-1.5:free">Gemini Flash 1.5 (gratuito)</option>
-        <option value="deepseek/deepseek-chat:free">DeepSeek Chat (gratuito)</option>
-        <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (gratuito, liviano)</option>
-        <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B (gratuito)</option>
-      </select>
-      <div class="modal-hint">Todos los modelos son gratuitos vía OpenRouter. El Llama 3.3 70B es el más equilibrado para uso educativo.</div>
+      <div class="modal-label">Motor de IA</div>
+      <div class="modal-hint">Eternaura elige automáticamente entre varios modelos gratuitos (Groq primero, OpenRouter como respaldo) y cambia solo si alguno está saturado. No requiere configuración.</div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Alumnos en este dispositivo</div>
+      <div class="modal-hint">Cada alumno que crea un perfil queda registrado acá. Esta lista es local a este dispositivo/navegador — si un alumno usa otro dispositivo, su perfil no aparece en esta lista.</div>
+      <div class="students-list" id="teacher-students-list"></div>
     </div>
 
     <div class="modal-section">
@@ -328,6 +409,20 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   </div>
 </div>
 
+<!-- Knowledge map modal -->
+<div class="modal-overlay" id="map-modal">
+  <div class="modal" style="width:680px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" style="font-family:var(--display)">🗺️ Mapa de Conocimiento</div>
+        <div class="modal-subtitle">Cada estrella es un tema trabajado · el tamaño y color reflejan tu dominio</div>
+      </div>
+      <button class="modal-close" onclick="closeKnowledgeMap()">×</button>
+    </div>
+    <div id="map-canvas" style="text-align:center"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="app">
@@ -337,6 +432,8 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       <div class="logo-name" id="ai-name-display">Eter<span>naura</span></div>
       <div class="logo-tag">IA Educativa · v4</div>
     </div>
+
+    <div class="sb-profile-chip" id="sb-profile-chip"></div>
 
     <div class="sb-body">
 
@@ -383,6 +480,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
         <div class="topic-list" id="topic-list">
           <div class="empty-profile">Aún no trabajaste ningún tema. Definí un tema y empezá a estudiar.</div>
         </div>
+        <button class="ghost-btn safe" onclick="openKnowledgeMap()">🗺️ Ver mapa de conocimiento</button>
         <button class="ghost-btn action" onclick="requestSessionSummary()">📋 Resumen de sesión</button>
         <button class="ghost-btn" onclick="clearStudentMemory()">Borrar perfil cognitivo</button>
       </div>
@@ -467,24 +565,156 @@ const MODE_PROMPTS = {
 };
 
 // ── State ──────────────────────────────────────────────
-let mode          = 'socratic';
-let studentDocs   = [];
-let history       = [];
-let loading       = false;
-let memory        = loadStudentMemory();
-let teacherConfig = loadTeacherConfig();
-let teacherDocs   = [];
+let mode           = 'socratic';
+let studentDocs    = [];
+let history        = [];
+let loading        = false;
+let memory         = defaultMemory();
+let teacherConfig  = loadTeacherConfig();
+let teacherDocs    = [];
+let currentProfile = null;
 const sessionTopicsTracked = new Set(); // tracks which topics got session++ this session
+
+const PROFILE_COLORS = ['#7c6af7','#2dd4bf','#f5a623','#f05252','#3b9eff','#3ecf7e'];
+let pickedColor = PROFILE_COLORS[0];
 
 // ── Boot ───────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   applyTeacherConfig();
-  loadSettings();
-  updateMemoryPanel();
-  bumpSession();
   updateTeacherLibStatus();
-  document.getElementById('user-input').focus();
+
+  const activeId = localStorage.getItem('ea_active_profile');
+  const profiles = loadProfiles();
+  const found = activeId && profiles.find(p => p.id === activeId);
+  if (found) {
+    selectProfile(found.id);
+  } else {
+    renderProfileGate(true);
+  }
 });
+
+// ── Profiles (multi-alumno) ─────────────────────────────
+function loadProfiles() {
+  try { return JSON.parse(localStorage.getItem('ea_profiles') || '[]'); } catch(_) { return []; }
+}
+function saveProfiles(list) { localStorage.setItem('ea_profiles', JSON.stringify(list)); }
+function memoryKey(id)   { return 'ea_memory:' + id; }
+function settingsKey(id) { return 'ea_settings:' + id; }
+
+function renderProfileGate(forceOpen) {
+  const gate  = document.getElementById('profile-gate');
+  const grid  = document.getElementById('profile-grid');
+  const close = document.getElementById('profile-gate-close');
+  close.style.display = (forceOpen || !currentProfile) ? 'none' : 'flex';
+
+  const profiles = loadProfiles();
+  if (!profiles.length) {
+    grid.innerHTML = '<div class="empty-profile" style="grid-column:1/-1">Todavía no hay perfiles. Creá el primero abajo 👇</div>';
+  } else {
+    grid.innerHTML = profiles.map(p => {
+      const mem    = loadStudentMemoryFor(p.id);
+      const topics = Object.values(mem.cognitiveProfile || {});
+      const avg    = topics.length ? Math.round(topics.reduce((a,t)=>a+(t.mastery||0),0)/topics.length*100) : 0;
+      return `
+        <button class="profile-card" onclick="selectProfile('${p.id}')">
+          <div class="profile-avatar" style="background:${p.color}">${escapeHtml(p.name.slice(0,1).toUpperCase())}</div>
+          <div class="profile-card-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+          <div class="profile-card-meta">${avg}% dominio · ${mem.lastSeen || 'nunca'}</div>
+        </button>`;
+    }).join('');
+  }
+  document.getElementById('new-profile-name').value = '';
+  pickedColor = PROFILE_COLORS[profiles.length % PROFILE_COLORS.length];
+  renderColorPicker();
+  gate.classList.add('open');
+}
+
+function renderColorPicker() {
+  document.getElementById('color-picker').innerHTML = PROFILE_COLORS.map(c =>
+    `<button class="color-swatch ${c===pickedColor?'picked':''}" style="background:${c}" onclick="pickColor('${c}',this)" aria-label="Color ${c}"></button>`
+  ).join('');
+}
+function pickColor(c, el) {
+  pickedColor = c;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('picked'));
+  el.classList.add('picked');
+}
+
+function createProfileFlow() {
+  const nameInput = document.getElementById('new-profile-name');
+  const name = nameInput.value.trim();
+  if (!name) { showToast('Escribí un nombre para el perfil'); nameInput.focus(); return; }
+  const id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  const profiles = loadProfiles();
+  profiles.push({ id, name, color: pickedColor, createdAt: new Date().toLocaleDateString('es-AR') });
+  saveProfiles(profiles);
+  selectProfile(id);
+}
+
+function selectProfile(id) {
+  const found = loadProfiles().find(p => p.id === id);
+  if (!found) return;
+  currentProfile = found;
+  localStorage.setItem('ea_active_profile', id);
+  document.getElementById('profile-gate').classList.remove('open');
+
+  history = [];
+  sessionTopicsTracked.clear();
+  memory = loadStudentMemoryFor(id);
+
+  loadSettings();
+  bumpSession();
+  updateMemoryPanel();
+  renderSidebarProfileChip();
+  resetChatToWelcome();
+  document.getElementById('user-input')?.focus();
+}
+
+function renderSidebarProfileChip() {
+  const el = document.getElementById('sb-profile-chip');
+  if (!currentProfile) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="profile-avatar-sm" style="background:${currentProfile.color}">${escapeHtml(currentProfile.name.slice(0,1).toUpperCase())}</div>
+    <div class="sb-profile-text">
+      <div class="sb-profile-name" title="${escapeHtml(currentProfile.name)}">${escapeHtml(currentProfile.name)}</div>
+      <button class="sb-profile-switch" onclick="renderProfileGate(false)">Cambiar perfil</button>
+    </div>`;
+}
+
+function deleteProfile(id) {
+  if (!confirm('¿Eliminar este perfil de alumno y todo su progreso? No se puede deshacer.')) return;
+  saveProfiles(loadProfiles().filter(p => p.id !== id));
+  localStorage.removeItem(memoryKey(id));
+  localStorage.removeItem(settingsKey(id));
+  if (currentProfile && currentProfile.id === id) {
+    localStorage.removeItem('ea_active_profile');
+    currentProfile = null;
+    closeTeacherModal(); closePwdGate();
+    renderProfileGate(true);
+  } else {
+    renderStudentsList();
+  }
+  showToast('Perfil eliminado');
+}
+
+function resetChatToWelcome() {
+  const greetName = currentProfile ? `, ${escapeHtml(currentProfile.name)}` : '';
+  const subLine = teacherConfig.systemPrompt
+    ? `Tu asistente de ${escapeHtml(teacherConfig.subject || 'aprendizaje')} está listo. Elegí un modo y empezá.`
+    : 'Tu compañero de aprendizaje. Elegí un modo, definí tu tema y empezá. Podés subir tus propios apuntes como base de conocimiento.';
+  document.getElementById('messages').innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">✨</div>
+      <div class="welcome-title">Hola${greetName}, soy <span>${escapeHtml(teacherConfig.aiName || 'Eternaura')}</span></div>
+      <div class="welcome-sub">${subLine}</div>
+      <div class="starters">
+        <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
+        <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
+        <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
+        <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
+      </div>
+    </div>`;
+}
 
 // ── Teacher config ─────────────────────────────────────
 function loadTeacherConfig() {
@@ -495,7 +725,7 @@ function loadTeacherConfig() {
 
 function defaultTeacherConfig() {
   return { aiName:'Eternaura', subject:'', systemPrompt:'', defaultMode:'socratic',
-           model:'meta-llama/llama-3.3-70b-instruct:free', password:DEFAULT_PWD, teacherDocs:[] };
+           password:DEFAULT_PWD, teacherDocs:[] };
 }
 
 function saveTeacherConfigToStorage() {
@@ -508,19 +738,7 @@ function applyTeacherConfig() {
   const nameEl = document.getElementById('ai-name-display');
   const half = Math.ceil(name.length / 2);
   nameEl.innerHTML = escapeHtml(name.slice(0, half)) + '<span>' + escapeHtml(name.slice(half)) + '</span>';
-  document.getElementById('welcome-ai-name').textContent = name;
   document.title = name + ' · IA Educativa';
-  if (teacherConfig.subject) {
-    document.getElementById('subject-input').value = teacherConfig.subject;
-    updateSubjectHead();
-  }
-  if (teacherConfig.defaultMode) {
-    const btn = document.querySelector(`[data-mode="${teacherConfig.defaultMode}"]`);
-    if (btn) setMode(teacherConfig.defaultMode, btn);
-  }
-  if (teacherConfig.systemPrompt)
-    document.getElementById('welcome-sub').textContent =
-      'Tu asistente de ' + (teacherConfig.subject || 'aprendizaje') + ' está listo. Elegí un modo y empezá.';
 }
 
 // Teacher panel
@@ -548,9 +766,9 @@ function openTeacherModal() {
   document.getElementById('cfg-subject').value      = teacherConfig.subject || '';
   document.getElementById('cfg-systemprompt').value = teacherConfig.systemPrompt || '';
   document.getElementById('cfg-defaultmode').value  = teacherConfig.defaultMode || 'socratic';
-  document.getElementById('cfg-model').value        = teacherConfig.model || 'meta-llama/llama-3.3-70b-instruct:free';
   document.getElementById('cfg-pwd').value          = '';
   renderTeacherDocList();
+  renderStudentsList();
   document.getElementById('teacher-modal').classList.add('open');
 }
 
@@ -561,13 +779,36 @@ function saveTeacherConfig() {
   teacherConfig.subject      = document.getElementById('cfg-subject').value.trim();
   teacherConfig.systemPrompt = document.getElementById('cfg-systemprompt').value.trim();
   teacherConfig.defaultMode  = document.getElementById('cfg-defaultmode').value;
-  teacherConfig.model        = document.getElementById('cfg-model').value;
   teacherConfig.teacherDocs  = teacherDocs.filter(Boolean).map(d => ({ name:d.name, text:d.text }));
   saveTeacherConfigToStorage();
   applyTeacherConfig();
   updateTeacherLibStatus();
+  if (document.getElementById('welcome')) resetChatToWelcome();
   closeTeacherModal();
   showToast('✅ Configuración guardada');
+}
+
+function renderStudentsList() {
+  const container = document.getElementById('teacher-students-list');
+  const profiles = loadProfiles();
+  if (!profiles.length) {
+    container.innerHTML = '<div class="empty-profile">Todavía no hay alumnos registrados en este dispositivo.</div>';
+    return;
+  }
+  container.innerHTML = profiles.map(p => {
+    const mem    = loadStudentMemoryFor(p.id);
+    const topics = Object.values(mem.cognitiveProfile || {});
+    const avg    = topics.length ? Math.round(topics.reduce((a,t)=>a+(t.mastery||0),0)/topics.length*100) : 0;
+    return `
+      <div class="student-row">
+        <div class="profile-avatar-sm" style="background:${p.color}">${escapeHtml(p.name.slice(0,1).toUpperCase())}</div>
+        <div class="student-info">
+          <div class="student-name">${escapeHtml(p.name)}</div>
+          <div class="student-meta">${mem.sessions||0} sesiones · ${mem.totalMessages||0} mensajes · ${topics.length} tema${topics.length!==1?'s':''} · dominio prom. ${avg}%</div>
+        </div>
+        <button class="doc-rm" title="Eliminar perfil" onclick="deleteProfile('${p.id}')">×</button>
+      </div>`;
+  }).join('');
 }
 
 function changePwd() {
@@ -665,17 +906,23 @@ function importConfig(input) {
   r.readAsText(file); input.value = '';
 }
 
-// ── Student settings ───────────────────────────────────
+// ── Student settings (por perfil) ───────────────────────
 function loadSettings() {
-  try {
-    const s = JSON.parse(localStorage.getItem('ea_settings') || '{}');
-    if (s.mode) { mode = s.mode; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); const btn = document.querySelector(`[data-mode="${mode}"]`); if (btn) btn.classList.add('active'); updateModeHead(); }
-    if (s.subject && !teacherConfig.subject) { document.getElementById('subject-input').value = s.subject; updateSubjectHead(); }
-  } catch(_) {}
+  if (!currentProfile) return;
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(settingsKey(currentProfile.id)) || '{}'); } catch(_) {}
+  mode = s.mode || teacherConfig.defaultMode || 'socratic';
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`[data-mode="${mode}"]`);
+  if (btn) btn.classList.add('active');
+  updateModeHead();
+  document.getElementById('subject-input').value = s.subject || teacherConfig.subject || '';
+  updateSubjectHead();
 }
 
 function saveSettings() {
-  localStorage.setItem('ea_settings', JSON.stringify({ mode, subject: document.getElementById('subject-input').value }));
+  if (!currentProfile) return;
+  localStorage.setItem(settingsKey(currentProfile.id), JSON.stringify({ mode, subject: document.getElementById('subject-input').value }));
   updateSubjectHead();
 }
 
@@ -691,10 +938,10 @@ function updateSubjectHead() {
   document.getElementById('head-subject').textContent = s || (teacherConfig.subject || 'Definí un tema en el panel izquierdo');
 }
 
-// ── Student memory + Cognitive Profile ────────────────
-function loadStudentMemory() {
+// ── Student memory + Cognitive Profile (por perfil) ────
+function loadStudentMemoryFor(id) {
   try {
-    const m = JSON.parse(localStorage.getItem('ea_memory') || 'null');
+    const m = JSON.parse(localStorage.getItem(memoryKey(id)) || 'null');
     if (!m) return defaultMemory();
     if (!m.cognitiveProfile) m.cognitiveProfile = {};
     return m;
@@ -705,7 +952,10 @@ function defaultMemory() {
   return { sessions: 0, totalMessages: 0, lastSeen: null, cognitiveProfile: {} };
 }
 
-function saveStudentMemory() { localStorage.setItem('ea_memory', JSON.stringify(memory)); }
+function saveStudentMemory() {
+  if (!currentProfile) return;
+  localStorage.setItem(memoryKey(currentProfile.id), JSON.stringify(memory));
+}
 
 function bumpSession() {
   memory.sessions  = (memory.sessions || 0) + 1;
@@ -776,6 +1026,71 @@ function clearStudentMemory() {
   showToast('Perfil cognitivo borrado');
 }
 
+// ── Mapa de Conocimiento (constelación SVG) ────────────
+function openKnowledgeMap() {
+  renderKnowledgeMap();
+  document.getElementById('map-modal').classList.add('open');
+}
+function closeKnowledgeMap() { document.getElementById('map-modal').classList.remove('open'); }
+
+function renderKnowledgeMap() {
+  const container = document.getElementById('map-canvas');
+  const entries = Object.entries(memory.cognitiveProfile || {});
+
+  if (!entries.length) {
+    container.innerHTML = '<div class="empty-profile" style="padding:50px 20px">Todavía no hay temas para mostrar.<br>Estudiá un poco y volvé a abrir el mapa.</div>';
+    return;
+  }
+
+  const cx = 300, cy = 300, ringR = 195;
+  const n = entries.length;
+  const nodes = entries.map(([topic, data], i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const pct   = Math.round((data.mastery || 0) * 100);
+    const x = cx + Math.cos(angle) * ringR;
+    const y = cy + Math.sin(angle) * ringR;
+    const nodeR = 15 + (pct / 100) * 17;
+    const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--blue)';
+    return { topic, pct, x, y, nodeR, color };
+  });
+
+  const lines = nodes.map(nd =>
+    `<line x1="${cx}" y1="${cy}" x2="${nd.x}" y2="${nd.y}" stroke="${nd.color}" stroke-opacity="${(0.15 + (nd.pct/100)*0.35).toFixed(2)}" stroke-width="1.5"/>`
+  ).join('');
+
+  const nodeEls = nodes.map(nd => {
+    const label = nd.topic.length > 16 ? nd.topic.slice(0,15) + '…' : nd.topic;
+    return `
+      <g class="kmap-node">
+        <circle cx="${nd.x}" cy="${nd.y}" r="${nd.nodeR}" fill="${nd.color}" fill-opacity="0.18" stroke="${nd.color}" stroke-width="1.5"/>
+        <text x="${nd.x}" y="${nd.y + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="${nd.color}" font-family="Inter, sans-serif">${nd.pct}%</text>
+        <text x="${nd.x}" y="${nd.y + nd.nodeR + 15}" text-anchor="middle" font-size="11" fill="var(--text-mid)" font-family="Inter, sans-serif">${escapeHtml(label)}</text>
+      </g>`;
+  }).join('');
+
+  const initial = (currentProfile?.name || 'E').slice(0,1).toUpperCase();
+
+  container.innerHTML = `
+    <svg viewBox="0 0 600 600" style="width:100%;height:auto;max-height:58vh">
+      <defs>
+        <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="300" cy="300" r="95" fill="url(#coreGlow)"/>
+      ${lines}
+      ${nodeEls}
+      <circle cx="300" cy="300" r="36" fill="var(--surface-2)" stroke="var(--accent)" stroke-width="2"/>
+      <text x="300" y="307" text-anchor="middle" font-size="20" font-weight="600" fill="var(--accent)" font-family="Fraunces, serif">${escapeHtml(initial)}</text>
+    </svg>
+    <div class="kmap-legend">
+      <span><i style="background:var(--blue)"></i>Iniciando</span>
+      <span><i style="background:var(--amber)"></i>En progreso</span>
+      <span><i style="background:var(--green)"></i>Avanzado</span>
+    </div>`;
+}
+
 // ── Student docs ───────────────────────────────────────
 async function handleStudentFiles(files) {
   document.getElementById('proc-msg').style.display = 'block';
@@ -833,14 +1148,7 @@ function extractTextFile(file) {
 }
 
 // ── RAG ───────────────────────────────────────────────
-function scoreChunk(chunk, keywords) {
-  const lower = chunk.toLowerCase(); let score = 0;
-  for (const kw of keywords) {
-    const matches = lower.match(new RegExp(kw, 'gi'));
-    if (matches) score += matches.length * (1 + kw.length / 10);
-  }
-  return score;
-}
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
 function buildDocContext(question) {
   const allDocs = [
@@ -851,13 +1159,24 @@ function buildDocContext(question) {
 
   const stopwords = new Set(['para','que','con','una','los','las','del','por','como','más','pero','sobre','esta','este','ese','eso','muy','sin','son','has','hay']);
   const keywords  = question.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w));
+  // Precompilar regex una sola vez (antes se recompilaba por cada chunk × keyword: lento en docs grandes)
+  const matchers = keywords.map(kw => ({ re: new RegExp(escapeRegex(kw), 'gi'), weight: 1 + kw.length / 10 }));
+
+  function scoreChunk(chunk) {
+    let score = 0;
+    for (const { re, weight } of matchers) {
+      const m = chunk.match(re);
+      if (m) score += m.length * weight;
+    }
+    return score;
+  }
 
   let ctx = '';
   for (const doc of allDocs) {
     if (ctx.length >= MAX_DOC_CONTEXT) break;
     const chunks = [];
     for (let i = 0; i < doc.text.length; i += CHUNK_SIZE) chunks.push(doc.text.slice(i, i + CHUNK_SIZE));
-    const ranked = chunks.map(c => ({ c, s:scoreChunk(c, keywords) }))
+    const ranked = chunks.map(c => ({ c, s: scoreChunk(c) }))
       .sort((a,b) => b.s - a.s).slice(0, TOP_CHUNKS).filter(x => x.s > 0).map(x => x.c).join(' ');
     if (ranked.trim()) {
       const label = doc.source === 'docente' ? `[Material docente: ${doc.name}]` : `[Apunte del alumno: ${doc.name}]`;
@@ -871,14 +1190,15 @@ function buildDocContext(question) {
 function buildSystemPrompt(question) {
   const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'el tema en cuestión';
   const aiName  = teacherConfig.aiName || 'Eternaura';
+  const studentName = currentProfile?.name || null;
   const docCtx  = buildDocContext(question);
 
   const profile   = (memory.cognitiveProfile || {})[subject];
   const masteryPct = profile ? Math.round(profile.mastery * 100) : null;
   const levelStr  = masteryPct ? (masteryPct >= 70 ? 'Avanzado' : masteryPct >= 40 ? 'En progreso' : 'Iniciando') : null;
   const memLine   = memory.totalMessages > 0
-    ? `Este alumno lleva ${memory.totalMessages} mensajes en ${memory.sessions} sesiones.${levelStr ? ` Su nivel en "${subject}": ${levelStr} (${masteryPct}% de dominio estimado).` : ''}`
-    : 'Primera interacción de este alumno.';
+    ? `Este alumno${studentName ? ` se llama ${studentName} y` : ''} lleva ${memory.totalMessages} mensajes en ${memory.sessions} sesiones.${levelStr ? ` Su nivel en "${subject}": ${levelStr} (${masteryPct}% de dominio estimado).` : ''}`
+    : `Primera interacción de este alumno${studentName ? ` (se llama ${studentName})` : ''}.`;
 
   const coreInstruction = teacherConfig.systemPrompt
     ? `INSTRUCCIONES DEL DOCENTE:\n${teacherConfig.systemPrompt}`
@@ -901,6 +1221,7 @@ ${docCtx
 
 PRINCIPIOS TRANSVERSALES:
 - Respondés siempre en español rioplatense (vos, ustedes).
+- Si conocés el nombre del alumno, podés usarlo ocasionalmente para personalizar, sin abusar.
 - Sos cálido pero riguroso. Señalás errores conceptuales con respeto y precisión.
 - Usás Markdown cuando ayuda (negrita para términos clave, listas, código si aplica).
 - Mantenés el hilo pedagógico: integrás lo trabajado anteriormente.
@@ -940,7 +1261,7 @@ async function sendMessage(override) {
   try {
     const res  = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ messages, model: teacherConfig.model || 'meta-llama/llama-3.3-70b-instruct:free' })
+      body: JSON.stringify({ messages })
     });
     const data = await res.json();
     typingEl.remove();
@@ -990,7 +1311,7 @@ async function requestSessionSummary() {
   try {
     const res  = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ messages: summaryMessages, model: teacherConfig.model || 'meta-llama/llama-3.3-70b-instruct:free' })
+      body: JSON.stringify({ messages: summaryMessages })
     });
     const data = await res.json();
     typingEl.remove();
@@ -1038,19 +1359,7 @@ function addTyping() {
 function clearChat() {
   if (!confirm('¿Limpiar el chat? Se borra la conversación actual (no el perfil cognitivo).')) return;
   history = [];
-  const msgs = document.getElementById('messages');
-  msgs.innerHTML = `
-    <div class="welcome" id="welcome">
-      <div class="welcome-icon">✨</div>
-      <div class="welcome-title">Hola, soy <span>${escapeHtml(teacherConfig.aiName || 'Eternaura')}</span></div>
-      <div class="welcome-sub">Nueva sesión lista. ¿Qué trabajamos hoy?</div>
-      <div class="starters">
-        <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
-        <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
-        <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
-        <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
-      </div>
-    </div>`;
+  resetChatToWelcome();
 }
 
 // ── Markdown ───────────────────────────────────────────
