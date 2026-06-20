@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Eternaura · IA Educativa</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d0f14;
+  --surface:     #13161e;
+  --surface-2:   #1a1e29;
+  --surface-3:   #212638;
+  --border:      #272c3d;
+  --border-2:    #323852;
+  --text:        #e8ecf4;
+  --text-mid:    #9aa3bb;
+  --text-muted:  #555f7a;
+  --accent:      #7c6af7;
+  --accent-dim:  rgba(124,106,247,.13);
+  --green:       #3ecf7e;
+  --green-dim:   rgba(62,207,126,.12);
+  --amber:       #f5a623;
+  --amber-dim:   rgba(245,166,35,.12);
+  --red:         #f05252;
+  --red-dim:     rgba(240,82,82,.12);
+  --blue:        #3b9eff;
+  --blue-dim:    rgba(59,158,255,.12);
+  --sidebar-w:   272px;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+html, body { height: 100%; overflow: hidden; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; }
+
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.sb-logo { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.logo-name { font-size: 18px; font-weight: 700; letter-spacing: -.5px; color: var(--text); }
+.logo-name span { color: var(--accent); }
+.logo-tag { font-size: 10px; color: var(--text-muted); letter-spacing: .12em; text-transform: uppercase; margin-top: 1px; }
+
+.sb-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 16px; }
+.sb-body::-webkit-scrollbar { width: 3px; }
+.sb-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.sb-section {}
+.sb-label { font-size: 10px; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+
+/* Mode */
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.mode-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; cursor: pointer; color: var(--text-mid); font-size: 11.5px; text-align: center; transition: all .15s; line-height: 1.3; font-family: var(--font); }
+.mode-btn:hover { border-color: var(--accent); color: var(--text); }
+.mode-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.mode-icon { display: block; font-size: 14px; margin-bottom: 3px; }
+
+/* Inputs */
+.field-input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text); font-family: var(--font); font-size: 13px; outline: none; transition: border-color .15s; }
+.field-input:focus { border-color: var(--accent); }
+.field-input::placeholder { color: var(--text-muted); }
+textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
+
+/* Upload */
+.upload-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 12px; transition: all .15s; }
+.upload-zone:hover, .upload-zone.over { border-color: var(--blue); color: var(--text); background: var(--blue-dim); }
+.doc-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.doc-item { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; font-size: 11.5px; }
+.doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-mid); }
+.doc-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 14px; padding: 0 2px; line-height: 1; }
+.doc-rm:hover { color: var(--red); }
+.doc-badge { font-size: 10px; color: var(--amber); background: var(--amber-dim); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.proc-msg { font-size: 11px; color: var(--blue); margin-top: 5px; display: none; }
+
+/* Config tag */
+.config-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+.config-tag.active { background: var(--green-dim); color: var(--green); }
+.config-tag.default { background: var(--surface-2); color: var(--text-muted); }
+
+/* ── Cognitive Profile ── */
+.cp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px; }
+.cp-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px; }
+.cp-stat-key { font-size: 10px; color: var(--text-muted); }
+.cp-stat-val { font-size: 15px; color: var(--green); font-weight: 700; margin-top: 1px; }
+
+.topic-list { display: flex; flex-direction: column; gap: 7px; }
+.topic-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.topic-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.topic-name { font-size: 12px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.topic-pct { font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.topic-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 3px; }
+.topic-bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
+.topic-meta { font-size: 10px; color: var(--text-muted); }
+
+.empty-profile { font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0; line-height: 1.5; }
+
+/* Ghost btn */
+.ghost-btn { width: 100%; background: none; border: 1px solid var(--border); border-radius: 7px; padding: 7px; cursor: pointer; font-size: 11.5px; color: var(--text-muted); font-family: var(--font); transition: all .15s; margin-top: 6px; }
+.ghost-btn:hover { border-color: var(--red); color: var(--red); }
+.ghost-btn.safe:hover { border-color: var(--accent); color: var(--accent); }
+.ghost-btn.action:hover { border-color: var(--green); color: var(--green); }
+
+/* ── Password gate ── */
+.pwd-gate { position: fixed; inset: 0; background: rgba(0,0,0,.8); backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.pwd-gate.open { opacity: 1; pointer-events: auto; }
+.pwd-box { background: var(--surface); border: 1px solid var(--border-2); border-radius: 14px; padding: 32px; width: 340px; text-align: center; display: flex; flex-direction: column; gap: 14px; }
+.pwd-title { font-size: 16px; font-weight: 700; }
+.pwd-sub { font-size: 12px; color: var(--text-muted); }
+.pwd-err { font-size: 12px; color: var(--red); display: none; }
+
+/* ── Teacher modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal { background: var(--surface); border: 1px solid var(--border-2); border-radius: 14px; width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.modal-close:hover { color: var(--text); }
+.modal-section { display: flex; flex-direction: column; gap: 8px; }
+.modal-label { font-size: 11px; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+.modal-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+.modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-primary { background: var(--accent); border: none; border-radius: 8px; padding: 10px 20px; color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
+.btn-primary:hover { opacity: .85; }
+.btn-secondary { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; color: var(--text-mid); font-size: 13px; cursor: pointer; font-family: var(--font); transition: all .15s; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.model-select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text); font-family: var(--font); font-size: 13px; outline: none; cursor: pointer; }
+.model-select:focus { border-color: var(--accent); }
+.import-export { display: flex; gap: 6px; }
+.import-export label, .import-export button { flex: 1; }
+.doc-progress { height: 2px; background: var(--border); border-radius: 1px; margin-top: 4px; overflow: hidden; }
+.doc-progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+
+/* ── Main ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.chat-header { padding: 13px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.head-status { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.head-info { flex: 1; min-width: 0; }
+.head-mode { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-subject { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.icon-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; cursor: pointer; font-size: 12px; color: var(--text-muted); font-family: var(--font); transition: all .15s; white-space: nowrap; }
+.icon-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.icon-btn.teacher { border-color: var(--amber); color: var(--amber); }
+.icon-btn.teacher:hover { background: var(--amber-dim); }
+
+/* Messages */
+.messages { flex: 1; overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; gap: 10px; }
+.welcome-icon { font-size: 40px; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.welcome-title { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
+.welcome-title span { color: var(--accent); }
+.welcome-sub { font-size: 13px; color: var(--text-muted); max-width: 420px; line-height: 1.6; }
+.starters { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 10px; }
+.starter { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 7px 14px; font-size: 12.5px; cursor: pointer; color: var(--text-mid); transition: all .15s; font-family: var(--font); }
+.starter:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Bubbles */
+.msg-wrap { display: flex; flex-direction: column; }
+.msg-wrap.user { align-items: flex-end; }
+.msg-meta { font-size: 10.5px; color: var(--text-muted); margin-bottom: 4px; padding: 0 3px; }
+.bubble { max-width: 72%; padding: 11px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.65; word-break: break-word; }
+.msg-wrap.user .bubble { background: var(--accent-dim); border: 1px solid rgba(124,106,247,.25); border-bottom-right-radius: 4px; }
+.msg-wrap.ai   .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.bubble strong { color: var(--accent); font-weight: 600; }
+.bubble em { color: var(--text-mid); font-style: italic; }
+.bubble code { background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; font-size: 12.5px; font-family: monospace; }
+.bubble pre { background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-x: auto; margin: 8px 0; }
+.bubble pre code { background: none; border: none; padding: 0; }
+.bubble h2 { font-size: 15px; margin: 12px 0 5px; }
+.bubble h3 { font-size: 13.5px; margin: 10px 0 4px; }
+.bubble ul, .bubble ol { margin: 6px 0 6px 18px; }
+.bubble li { margin-bottom: 3px; }
+.bubble blockquote { border-left: 2px solid var(--accent); padding-left: 12px; color: var(--text-mid); margin: 8px 0; }
+.bubble p { margin-bottom: 6px; }
+.bubble p:last-child { margin-bottom: 0; }
+
+/* Summary bubble */
+.summary-bubble { background: var(--surface-3); border: 1px solid var(--border-2); border-left: 3px solid var(--green); font-size: 13px; }
+
+/* Typing */
+.typing { display: flex; gap: 5px; align-items: center; padding: 12px 14px; }
+.typing span { width: 7px; height: 7px; background: var(--text-muted); border-radius: 50%; animation: bounce .9s infinite; }
+.typing span:nth-child(2) { animation-delay: .15s; }
+.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+/* Input */
+.input-area { border-top: 1px solid var(--border); padding: 12px 18px; flex-shrink: 0; }
+.doc-hint { font-size: 11px; color: var(--blue); margin-bottom: 6px; min-height: 16px; }
+.input-wrap { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; transition: border-color .15s; }
+.input-wrap:focus-within { border-color: var(--accent); }
+#user-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--font); font-size: 14px; resize: none; max-height: 160px; line-height: 1.5; min-height: 24px; }
+#user-input::placeholder { color: var(--text-muted); }
+.send-btn { background: var(--accent); border: none; border-radius: 7px; width: 34px; height: 34px; cursor: pointer; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity .15s; }
+.send-btn:hover { opacity: .85; }
+.send-btn:disabled { opacity: .35; cursor: not-allowed; }
+.send-btn svg { width: 15px; height: 15px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--border-2); border-radius: 8px; padding: 9px 18px; font-size: 13px; color: var(--text); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 640px) {
+  :root { --sidebar-w: 230px; }
+  .bubble { max-width: 90%; }
+}
+</style>
+</head>
+<body>
+
+<!-- Password gate -->
+<div class="pwd-gate" id="pwd-gate">
+  <div class="pwd-box">
+    <div style="font-size:28px">🔐</div>
+    <div class="pwd-title">Panel Docente</div>
+    <div class="pwd-sub">Ingresá la contraseña de configuración</div>
+    <input class="field-input" type="password" id="pwd-input" placeholder="Contraseña..." onkeydown="if(event.key==='Enter')checkPwd()"/>
+    <div class="pwd-err" id="pwd-err">Contraseña incorrecta</div>
+    <button class="btn-primary" onclick="checkPwd()">Ingresar</button>
+    <button class="btn-secondary" onclick="closePwdGate()">Cancelar</button>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Contraseña por defecto: <strong style="color:var(--text)">docente2024</strong><br>Cambiala desde el panel una vez adentro.</div>
+  </div>
+</div>
+
+<!-- Teacher modal -->
+<div class="modal-overlay" id="teacher-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">⚙️ Panel Docente — Configuración de la IA</div>
+        <div class="modal-subtitle">Todo lo que configurés aquí define cómo la IA se comporta con los alumnos</div>
+      </div>
+      <button class="modal-close" onclick="closeTeacherModal()">×</button>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Nombre e identidad de la IA</div>
+      <div class="modal-row">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Nombre de la IA</div>
+          <input class="field-input" id="cfg-ainame" placeholder="Ej: ProfeBot, AulaIA…" value="Eternaura"/>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Materia / Área</div>
+          <input class="field-input" id="cfg-subject" placeholder="Ej: Física, Historia…"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Instrucciones personalizadas (System Prompt)</div>
+      <div class="modal-hint">Escribí aquí cómo querés que la IA se comporte, qué puede y qué no puede responder, el tono, el enfoque pedagógico y el nivel educativo. Esto reemplaza el comportamiento por defecto.</div>
+      <textarea class="field-input" id="cfg-systemprompt" rows="7" placeholder="Ej: Sos un asistente de Física para alumnos de 5to año. Solo respondés preguntas relacionadas con los contenidos del programa (mecánica, termodinámica, ondas y electromagnetismo). Usás ejemplos del mundo cotidiano..."></textarea>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Modo pedagógico por defecto</div>
+      <select class="model-select" id="cfg-defaultmode">
+        <option value="socratic">🔍 Socrático — guía con preguntas</option>
+        <option value="direct">📖 Directo — explica claramente</option>
+        <option value="exercises">✏️ Ejercicios — practica y corrige</option>
+        <option value="evaluator">📊 Evaluador — puntúa y retroalimenta</option>
+      </select>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Modelo de IA</div>
+      <select class="model-select" id="cfg-model">
+        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (recomendado, gratuito)</option>
+        <option value="meta-llama/llama-4-maverick:free">Llama 4 Maverick (gratuito)</option>
+        <option value="google/gemini-flash-1.5:free">Gemini Flash 1.5 (gratuito)</option>
+        <option value="deepseek/deepseek-chat:free">DeepSeek Chat (gratuito)</option>
+        <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (gratuito, liviano)</option>
+        <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B (gratuito)</option>
+      </select>
+      <div class="modal-hint">Todos los modelos son gratuitos vía OpenRouter. El Llama 3.3 70B es el más equilibrado para uso educativo.</div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Biblioteca docente (documentos base permanentes)</div>
+      <div class="modal-hint">Estos documentos quedan guardados en este dispositivo y la IA los usa como base de conocimiento en todas las conversaciones. PDF hasta 60 páginas, TXT y MD ilimitado.</div>
+      <div class="upload-zone" onclick="document.getElementById('teacher-file-input').click()"
+           ondragover="onDragOverTeacher(event)" ondragleave="onDragLeaveTeacher(event)" ondrop="onDropTeacher(event)">
+        <div>📚 Subí tus materiales base (PDF, TXT, MD)</div>
+        <div style="font-size:11px;margin-top:4px">Hacé clic o arrastrá archivos aquí</div>
+      </div>
+      <input type="file" id="teacher-file-input" accept=".pdf,.txt,.md" multiple style="display:none" onchange="handleTeacherFiles(this.files)"/>
+      <div class="proc-msg" id="teacher-proc-msg">⏳ Procesando documentos…</div>
+      <div class="doc-progress" id="teacher-progress" style="display:none"><div class="doc-progress-bar" id="teacher-progress-bar"></div></div>
+      <div class="doc-list" id="teacher-doc-list"></div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Contraseña del panel docente</div>
+      <div class="modal-row">
+        <input class="field-input" type="password" id="cfg-pwd" placeholder="Nueva contraseña…"/>
+        <button class="btn-secondary" onclick="changePwd()">Cambiar contraseña</button>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Exportar / importar configuración</div>
+      <div class="modal-hint">Exportá toda la configuración (instrucciones + biblioteca docente) para hacer backup o compartir con otro dispositivo.</div>
+      <div class="import-export">
+        <button class="btn-secondary" onclick="exportConfig()">⬇ Exportar configuración</button>
+        <label class="btn-secondary" style="display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          ⬆ Importar configuración
+          <input type="file" accept=".json" style="display:none" onchange="importConfig(this)"/>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeTeacherModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveTeacherConfig()">💾 Guardar configuración</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="logo-name" id="ai-name-display">Eter<span>naura</span></div>
+      <div class="logo-tag">IA Educativa · v4</div>
+    </div>
+
+    <div class="sb-body">
+
+      <div class="sb-section">
+        <div class="sb-label">Modo pedagógico</div>
+        <div class="mode-grid">
+          <button class="mode-btn active" data-mode="socratic" onclick="setMode('socratic',this)"><span class="mode-icon">🔍</span>Socrático</button>
+          <button class="mode-btn" data-mode="direct" onclick="setMode('direct',this)"><span class="mode-icon">📖</span>Directo</button>
+          <button class="mode-btn" data-mode="exercises" onclick="setMode('exercises',this)"><span class="mode-icon">✏️</span>Ejercicios</button>
+          <button class="mode-btn" data-mode="evaluator" onclick="setMode('evaluator',this)"><span class="mode-icon">📊</span>Evaluador</button>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Tema de esta sesión</div>
+        <input class="field-input" id="subject-input" placeholder="Ej: Leyes de Newton…" oninput="saveSettings();updateSubjectHead()"/>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Mis apuntes (esta sesión)</div>
+        <div class="upload-zone" onclick="document.getElementById('file-input').click()"
+             ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+          <div>📎 PDF, TXT o MD</div>
+          <div style="font-size:11px;margin-top:3px">Clic o arrastrá</div>
+        </div>
+        <input type="file" id="file-input" accept=".pdf,.txt,.md" multiple style="display:none" onchange="handleStudentFiles(this.files)"/>
+        <div class="proc-msg" id="proc-msg">⏳ Procesando…</div>
+        <div class="doc-list" id="doc-list"></div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">Base docente</div>
+        <div id="teacher-lib-status" class="config-tag default">Sin base docente cargada</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px" id="teacher-lib-count"></div>
+      </div>
+
+      <!-- Cognitive Profile -->
+      <div class="sb-section">
+        <div class="sb-label">Perfil cognitivo</div>
+        <div class="cp-stats">
+          <div class="cp-stat"><div class="cp-stat-key">Sesiones</div><div class="cp-stat-val" id="m-sessions">0</div></div>
+          <div class="cp-stat"><div class="cp-stat-key">Mensajes</div><div class="cp-stat-val" id="m-messages">0</div></div>
+        </div>
+        <div class="topic-list" id="topic-list">
+          <div class="empty-profile">Aún no trabajaste ningún tema. Definí un tema y empezá a estudiar.</div>
+        </div>
+        <button class="ghost-btn action" onclick="requestSessionSummary()">📋 Resumen de sesión</button>
+        <button class="ghost-btn" onclick="clearStudentMemory()">Borrar perfil cognitivo</button>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Main chat -->
+  <main class="main">
+    <div class="chat-header">
+      <div class="head-status"></div>
+      <div class="head-info">
+        <div class="head-mode" id="head-mode">Modo Socrático</div>
+        <div class="head-subject" id="head-subject">Definí un tema en el panel izquierdo</div>
+      </div>
+      <div class="head-actions">
+        <button class="icon-btn" onclick="clearChat()">🗑 Limpiar</button>
+        <button class="icon-btn teacher" onclick="openTeacherPanel()">⚙️ Docente</button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">✨</div>
+        <div class="welcome-title">Hola, soy <span id="welcome-ai-name">Eternaura</span></div>
+        <div class="welcome-sub" id="welcome-sub">Tu compañero de aprendizaje. Elegí un modo, definí tu tema y empezá. Podés subir tus propios apuntes como base de conocimiento.</div>
+        <div class="starters">
+          <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
+          <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
+          <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
+          <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="doc-hint" id="doc-hint"></div>
+      <div class="input-wrap">
+        <textarea id="user-input" rows="1" placeholder="Escribí tu mensaje…"
+          onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+if (typeof pdfjsLib !== 'undefined')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Constants ──────────────────────────────────────────
+const MAX_HISTORY     = 14;
+const MAX_DOC_CONTEXT = 5000;
+const CHUNK_SIZE      = 600;
+const TOP_CHUNKS      = 6;
+const DEFAULT_PWD     = 'docente2024';
+
+// Mastery delta by mode (how much each mode increases mastery per exchange)
+const MASTERY_DELTA = { socratic: 0.05, direct: 0.03, exercises: 0.06, evaluator: 0.08 };
+const MASTERY_INITIAL = 0.15;
+
+const MODE_LABELS = {
+  socratic:  'Modo Socrático',
+  direct:    'Modo Explicación Directa',
+  exercises: 'Modo Ejercicios',
+  evaluator: 'Modo Evaluador'
+};
+
+const MODE_PROMPTS = {
+  socratic:
+    'Usás el método socrático: nunca das la respuesta directa. Guiás al alumno con preguntas que lo llevan a descubrir por sí mismo. Celebrás cada avance. Si el alumno se bloquea, das pistas graduales —nunca la solución completa hasta que haya intentado de verdad.',
+  direct:
+    'Explicás de forma clara, estructurada y pedagógica. Usás analogías del mundo real, ejemplos concretos y vas de lo simple a lo complejo. Adaptás el nivel al contexto de la conversación.',
+  exercises:
+    'Generás ejercicios prácticos sobre el tema. Cuando el alumno responde, das feedback detallado: qué estuvo bien, qué hay que mejorar y por qué. Luego proponés el siguiente ejercicio de dificultad incremental.',
+  evaluator:
+    'Evaluás las respuestas con criterio pedagógico riguroso pero empático. Señalás errores con precisión y amabilidad. Explicás el concepto correcto en profundidad. Usás un puntaje informal (ej: 7/10) con justificación. Al final, sugerís qué repasar.'
+};
+
+// ── State ──────────────────────────────────────────────
+let mode          = 'socratic';
+let studentDocs   = [];
+let history       = [];
+let loading       = false;
+let memory        = loadStudentMemory();
+let teacherConfig = loadTeacherConfig();
+let teacherDocs   = [];
+const sessionTopicsTracked = new Set(); // tracks which topics got session++ this session
+
+// ── Boot ───────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  applyTeacherConfig();
+  loadSettings();
+  updateMemoryPanel();
+  bumpSession();
+  updateTeacherLibStatus();
+  document.getElementById('user-input').focus();
+});
+
+// ── Teacher config ─────────────────────────────────────
+function loadTeacherConfig() {
+  try {
+    return JSON.parse(localStorage.getItem('ea_teacher_cfg') || 'null') || defaultTeacherConfig();
+  } catch(_) { return defaultTeacherConfig(); }
+}
+
+function defaultTeacherConfig() {
+  return { aiName:'Eternaura', subject:'', systemPrompt:'', defaultMode:'socratic',
+           model:'meta-llama/llama-3.3-70b-instruct:free', password:DEFAULT_PWD, teacherDocs:[] };
+}
+
+function saveTeacherConfigToStorage() {
+  localStorage.setItem('ea_teacher_cfg', JSON.stringify(teacherConfig));
+}
+
+function applyTeacherConfig() {
+  teacherDocs = (teacherConfig.teacherDocs || []).map(d => ({ name:d.name, text:d.text }));
+  const name = teacherConfig.aiName || 'Eternaura';
+  const nameEl = document.getElementById('ai-name-display');
+  const half = Math.ceil(name.length / 2);
+  nameEl.innerHTML = escapeHtml(name.slice(0, half)) + '<span>' + escapeHtml(name.slice(half)) + '</span>';
+  document.getElementById('welcome-ai-name').textContent = name;
+  document.title = name + ' · IA Educativa';
+  if (teacherConfig.subject) {
+    document.getElementById('subject-input').value = teacherConfig.subject;
+    updateSubjectHead();
+  }
+  if (teacherConfig.defaultMode) {
+    const btn = document.querySelector(`[data-mode="${teacherConfig.defaultMode}"]`);
+    if (btn) setMode(teacherConfig.defaultMode, btn);
+  }
+  if (teacherConfig.systemPrompt)
+    document.getElementById('welcome-sub').textContent =
+      'Tu asistente de ' + (teacherConfig.subject || 'aprendizaje') + ' está listo. Elegí un modo y empezá.';
+}
+
+// Teacher panel
+function openTeacherPanel() {
+  document.getElementById('pwd-gate').classList.add('open');
+  document.getElementById('pwd-input').value = '';
+  document.getElementById('pwd-err').style.display = 'none';
+  setTimeout(() => document.getElementById('pwd-input').focus(), 100);
+}
+
+function checkPwd() {
+  if (document.getElementById('pwd-input').value === teacherConfig.password) {
+    closePwdGate();
+    openTeacherModal();
+  } else {
+    document.getElementById('pwd-err').style.display = 'block';
+    document.getElementById('pwd-input').value = '';
+  }
+}
+
+function closePwdGate() { document.getElementById('pwd-gate').classList.remove('open'); }
+
+function openTeacherModal() {
+  document.getElementById('cfg-ainame').value       = teacherConfig.aiName || 'Eternaura';
+  document.getElementById('cfg-subject').value      = teacherConfig.subject || '';
+  document.getElementById('cfg-systemprompt').value = teacherConfig.systemPrompt || '';
+  document.getElementById('cfg-defaultmode').value  = teacherConfig.defaultMode || 'socratic';
+  document.getElementById('cfg-model').value        = teacherConfig.model || 'meta-llama/llama-3.3-70b-instruct:free';
+  document.getElementById('cfg-pwd').value          = '';
+  renderTeacherDocList();
+  document.getElementById('teacher-modal').classList.add('open');
+}
+
+function closeTeacherModal() { document.getElementById('teacher-modal').classList.remove('open'); }
+
+function saveTeacherConfig() {
+  teacherConfig.aiName       = document.getElementById('cfg-ainame').value.trim() || 'Eternaura';
+  teacherConfig.subject      = document.getElementById('cfg-subject').value.trim();
+  teacherConfig.systemPrompt = document.getElementById('cfg-systemprompt').value.trim();
+  teacherConfig.defaultMode  = document.getElementById('cfg-defaultmode').value;
+  teacherConfig.model        = document.getElementById('cfg-model').value;
+  teacherConfig.teacherDocs  = teacherDocs.filter(Boolean).map(d => ({ name:d.name, text:d.text }));
+  saveTeacherConfigToStorage();
+  applyTeacherConfig();
+  updateTeacherLibStatus();
+  closeTeacherModal();
+  showToast('✅ Configuración guardada');
+}
+
+function changePwd() {
+  const p = document.getElementById('cfg-pwd').value.trim();
+  if (!p) { showToast('Escribí la nueva contraseña'); return; }
+  if (p.length < 4) { showToast('Mínimo 4 caracteres'); return; }
+  teacherConfig.password = p;
+  document.getElementById('cfg-pwd').value = '';
+  showToast('🔑 Contraseña cambiada — guardá la configuración');
+}
+
+// Teacher docs
+async function handleTeacherFiles(files) {
+  const proc = document.getElementById('teacher-proc-msg');
+  const bar  = document.getElementById('teacher-progress-bar');
+  const prog = document.getElementById('teacher-progress');
+  proc.style.display = 'block'; prog.style.display = 'block';
+  let done = 0;
+  for (const file of files) {
+    try {
+      const text = file.name.endsWith('.pdf') ? await extractPDF(file) : await extractTextFile(file);
+      teacherDocs.push({ name:file.name, text });
+      renderTeacherDocItem(file.name, teacherDocs.length - 1);
+    } catch(e) { console.error('Error:', file.name, e); }
+    bar.style.width = (++done / files.length * 100) + '%';
+  }
+  proc.style.display = 'none';
+  setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0'; }, 600);
+  document.getElementById('teacher-file-input').value = '';
+}
+
+function renderTeacherDocList() {
+  const list = document.getElementById('teacher-doc-list');
+  list.innerHTML = '';
+  teacherDocs.forEach((d, i) => { if (d) renderTeacherDocItem(d.name, i); });
+}
+
+// BUG FIXED: was if(append)…else… with identical branches. Now always appends correctly.
+function renderTeacherDocItem(name, idx) {
+  const list = document.getElementById('teacher-doc-list');
+  const el   = document.createElement('div');
+  el.className = 'doc-item';
+  el.id = `tdi-${idx}`;
+  const kb = teacherDocs[idx] ? Math.round(teacherDocs[idx].text.length / 1024 * 10) / 10 : 0;
+  el.innerHTML = `
+    <span>📚</span>
+    <span class="doc-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+    <span class="doc-badge">${kb}kb</span>
+    <button class="doc-rm" onclick="removeTeacherDoc(${idx})">×</button>`;
+  list.appendChild(el);
+}
+
+function removeTeacherDoc(idx) {
+  teacherDocs[idx] = null;
+  document.getElementById(`tdi-${idx}`)?.remove();
+}
+
+function updateTeacherLibStatus() {
+  const n  = teacherDocs.filter(Boolean).length;
+  const el = document.getElementById('teacher-lib-status');
+  const cnt = document.getElementById('teacher-lib-count');
+  if (n > 0) {
+    el.className = 'config-tag active'; el.textContent = '✓ Base docente activa';
+    cnt.textContent = `${n} documento${n>1?'s':''} cargado${n>1?'s':''}`;
+  } else {
+    el.className = 'config-tag default'; el.textContent = 'Sin base docente cargada';
+    cnt.textContent = '';
+  }
+}
+
+function onDragOverTeacher(e) { e.preventDefault(); e.currentTarget.classList.add('over'); }
+function onDragLeaveTeacher(e) { e.currentTarget.classList.remove('over'); }
+function onDropTeacher(e) { e.preventDefault(); e.currentTarget.classList.remove('over'); handleTeacherFiles(e.dataTransfer.files); }
+
+// Export / Import
+function exportConfig() {
+  const blob = new Blob([JSON.stringify({ ...teacherConfig, teacherDocs: teacherDocs.filter(Boolean) }, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'eternaura-config.json'; a.click();
+}
+
+function importConfig(input) {
+  const file = input.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const cfg  = JSON.parse(e.target.result);
+      teacherConfig = cfg;
+      teacherDocs   = (cfg.teacherDocs || []).map(d => ({ name:d.name, text:d.text }));
+      saveTeacherConfigToStorage();
+      openTeacherModal();
+      showToast('✅ Configuración importada');
+    } catch(_) { showToast('❌ Archivo inválido'); }
+  };
+  r.readAsText(file); input.value = '';
+}
+
+// ── Student settings ───────────────────────────────────
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('ea_settings') || '{}');
+    if (s.mode) { mode = s.mode; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); const btn = document.querySelector(`[data-mode="${mode}"]`); if (btn) btn.classList.add('active'); updateModeHead(); }
+    if (s.subject && !teacherConfig.subject) { document.getElementById('subject-input').value = s.subject; updateSubjectHead(); }
+  } catch(_) {}
+}
+
+function saveSettings() {
+  localStorage.setItem('ea_settings', JSON.stringify({ mode, subject: document.getElementById('subject-input').value }));
+  updateSubjectHead();
+}
+
+function setMode(m, btn) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); updateModeHead(); saveSettings();
+}
+
+function updateModeHead() { document.getElementById('head-mode').textContent = MODE_LABELS[mode] || mode; }
+function updateSubjectHead() {
+  const s = document.getElementById('subject-input').value.trim();
+  document.getElementById('head-subject').textContent = s || (teacherConfig.subject || 'Definí un tema en el panel izquierdo');
+}
+
+// ── Student memory + Cognitive Profile ────────────────
+function loadStudentMemory() {
+  try {
+    const m = JSON.parse(localStorage.getItem('ea_memory') || 'null');
+    if (!m) return defaultMemory();
+    if (!m.cognitiveProfile) m.cognitiveProfile = {};
+    return m;
+  } catch(_) { return defaultMemory(); }
+}
+
+function defaultMemory() {
+  return { sessions: 0, totalMessages: 0, lastSeen: null, cognitiveProfile: {} };
+}
+
+function saveStudentMemory() { localStorage.setItem('ea_memory', JSON.stringify(memory)); }
+
+function bumpSession() {
+  memory.sessions  = (memory.sessions || 0) + 1;
+  memory.lastSeen  = new Date().toLocaleDateString('es-AR');
+  saveStudentMemory(); updateMemoryPanel();
+}
+
+// Core cognitive profile update — called after each AI response
+function updateCognitiveProfile() {
+  const topic = document.getElementById('subject-input').value.trim() || 'General';
+  if (!memory.cognitiveProfile) memory.cognitiveProfile = {};
+
+  const existing = memory.cognitiveProfile[topic];
+  const profile  = existing || { mastery: MASTERY_INITIAL, messages: 0, sessions: 0, lastSeen: null };
+
+  // Increase mastery based on mode (capped at 1.0)
+  profile.mastery  = Math.min(1.0, (profile.mastery || MASTERY_INITIAL) + (MASTERY_DELTA[mode] || 0.04));
+  profile.messages = (profile.messages || 0) + 1;
+  profile.lastSeen = new Date().toLocaleDateString('es-AR');
+
+  // Increment session count once per topic per page session
+  if (!sessionTopicsTracked.has(topic)) {
+    profile.sessions = (profile.sessions || 0) + 1;
+    sessionTopicsTracked.add(topic);
+  }
+
+  memory.cognitiveProfile[topic] = profile;
+  saveStudentMemory();
+  updateMemoryPanel();
+}
+
+function updateMemoryPanel() {
+  document.getElementById('m-sessions').textContent = memory.sessions || 0;
+  document.getElementById('m-messages').textContent = memory.totalMessages || 0;
+
+  const profile = memory.cognitiveProfile || {};
+  const entries = Object.entries(profile);
+  const container = document.getElementById('topic-list');
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty-profile">Aún no trabajaste ningún tema.<br>Definí un tema y empezá a estudiar.</div>';
+    return;
+  }
+
+  // Sort by last seen (most recent first)
+  entries.sort((a, b) => (b[1].messages || 0) - (a[1].messages || 0));
+
+  container.innerHTML = entries.map(([topic, data]) => {
+    const pct   = Math.round((data.mastery || 0) * 100);
+    const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--blue)';
+    const level = pct >= 70 ? 'Avanzado' : pct >= 40 ? 'En progreso' : 'Iniciando';
+    return `
+      <div class="topic-item">
+        <div class="topic-header">
+          <span class="topic-name" title="${escapeHtml(topic)}">${escapeHtml(topic)}</span>
+          <span class="topic-pct" style="color:${color}">${pct}%</span>
+        </div>
+        <div class="topic-bar"><div class="topic-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="topic-meta">${data.messages||0} msgs · ${data.sessions||0} ses. · <strong style="color:${color}">${level}</strong></div>
+      </div>`;
+  }).join('');
+}
+
+function clearStudentMemory() {
+  if (!confirm('¿Borrar todo el perfil cognitivo? No se puede deshacer.')) return;
+  memory = defaultMemory(); sessionTopicsTracked.clear();
+  saveStudentMemory(); updateMemoryPanel();
+  showToast('Perfil cognitivo borrado');
+}
+
+// ── Student docs ───────────────────────────────────────
+async function handleStudentFiles(files) {
+  document.getElementById('proc-msg').style.display = 'block';
+  for (const file of files) {
+    try {
+      const text = file.name.endsWith('.pdf') ? await extractPDF(file) : await extractTextFile(file);
+      const idx  = studentDocs.length;
+      studentDocs.push({ name:file.name, text });
+      const list = document.getElementById('doc-list');
+      const el   = document.createElement('div');
+      el.className = 'doc-item'; el.id = `di-${idx}`;
+      el.innerHTML = `<span>📄</span><span class="doc-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><button class="doc-rm" onclick="removeStudentDoc(${idx})">×</button>`;
+      list.appendChild(el);
+    } catch(e) { console.error('Error:', file.name, e); }
+  }
+  document.getElementById('proc-msg').style.display = 'none';
+  updateDocHint(); document.getElementById('file-input').value = '';
+}
+
+function removeStudentDoc(idx) {
+  studentDocs[idx] = null;
+  document.getElementById(`di-${idx}`)?.remove();
+  updateDocHint();
+}
+
+function updateDocHint() {
+  const n = studentDocs.filter(Boolean).length;
+  document.getElementById('doc-hint').textContent = n > 0 ? `📄 ${n} apunte${n>1?'s':''} cargado${n>1?'s':''} para esta sesión` : '';
+}
+
+function onDragOver(e) { e.preventDefault(); document.querySelector('.sidebar .upload-zone')?.classList.add('over'); }
+function onDragLeave()  { document.querySelector('.sidebar .upload-zone')?.classList.remove('over'); }
+function onDrop(e)      { e.preventDefault(); onDragLeave(); handleStudentFiles(e.dataTransfer.files); }
+
+// ── PDF & text extraction ──────────────────────────────
+async function extractPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data:buf }).promise;
+  let out = '';
+  for (let i = 1; i <= Math.min(pdf.numPages, 60); i++) {
+    const pg = await pdf.getPage(i);
+    const ct = await pg.getTextContent();
+    out += ct.items.map(x => x.str).join(' ') + '\n';
+  }
+  return out;
+}
+
+function extractTextFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsText(file, 'UTF-8');
+  });
+}
+
+// ── RAG ───────────────────────────────────────────────
+function scoreChunk(chunk, keywords) {
+  const lower = chunk.toLowerCase(); let score = 0;
+  for (const kw of keywords) {
+    const matches = lower.match(new RegExp(kw, 'gi'));
+    if (matches) score += matches.length * (1 + kw.length / 10);
+  }
+  return score;
+}
+
+function buildDocContext(question) {
+  const allDocs = [
+    ...teacherDocs.filter(Boolean).map(d => ({ ...d, source:'docente' })),
+    ...studentDocs.filter(Boolean).map(d => ({ ...d, source:'alumno' }))
+  ];
+  if (!allDocs.length) return '';
+
+  const stopwords = new Set(['para','que','con','una','los','las','del','por','como','más','pero','sobre','esta','este','ese','eso','muy','sin','son','has','hay']);
+  const keywords  = question.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w));
+
+  let ctx = '';
+  for (const doc of allDocs) {
+    if (ctx.length >= MAX_DOC_CONTEXT) break;
+    const chunks = [];
+    for (let i = 0; i < doc.text.length; i += CHUNK_SIZE) chunks.push(doc.text.slice(i, i + CHUNK_SIZE));
+    const ranked = chunks.map(c => ({ c, s:scoreChunk(c, keywords) }))
+      .sort((a,b) => b.s - a.s).slice(0, TOP_CHUNKS).filter(x => x.s > 0).map(x => x.c).join(' ');
+    if (ranked.trim()) {
+      const label = doc.source === 'docente' ? `[Material docente: ${doc.name}]` : `[Apunte del alumno: ${doc.name}]`;
+      ctx += `\n${label}\n${ranked.slice(0, MAX_DOC_CONTEXT - ctx.length)}\n`;
+    }
+  }
+  return ctx;
+}
+
+// ── System prompt ──────────────────────────────────────
+function buildSystemPrompt(question) {
+  const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'el tema en cuestión';
+  const aiName  = teacherConfig.aiName || 'Eternaura';
+  const docCtx  = buildDocContext(question);
+
+  const profile   = (memory.cognitiveProfile || {})[subject];
+  const masteryPct = profile ? Math.round(profile.mastery * 100) : null;
+  const levelStr  = masteryPct ? (masteryPct >= 70 ? 'Avanzado' : masteryPct >= 40 ? 'En progreso' : 'Iniciando') : null;
+  const memLine   = memory.totalMessages > 0
+    ? `Este alumno lleva ${memory.totalMessages} mensajes en ${memory.sessions} sesiones.${levelStr ? ` Su nivel en "${subject}": ${levelStr} (${masteryPct}% de dominio estimado).` : ''}`
+    : 'Primera interacción de este alumno.';
+
+  const coreInstruction = teacherConfig.systemPrompt
+    ? `INSTRUCCIONES DEL DOCENTE:\n${teacherConfig.systemPrompt}`
+    : `Sos ${aiName}, una IA educativa diseñada para acompañar el aprendizaje de forma profunda, personalizada y rigurosa.`;
+
+  return `${coreInstruction}
+
+NOMBRE DE LA IA: ${aiName}
+MATERIA / TEMA ACTUAL: ${subject}
+
+MODO PEDAGÓGICO ACTIVO:
+${MODE_PROMPTS[mode] || MODE_PROMPTS.direct}
+
+PERFIL DEL ALUMNO:
+${memLine}
+
+${docCtx
+  ? `BASE DOCUMENTAL (fragmentos relevantes):\n${docCtx}\nCuando tu respuesta se apoye en estos materiales, referenciá la fuente.`
+  : 'No hay documentos cargados en esta sesión.'}
+
+PRINCIPIOS TRANSVERSALES:
+- Respondés siempre en español rioplatense (vos, ustedes).
+- Sos cálido pero riguroso. Señalás errores conceptuales con respeto y precisión.
+- Usás Markdown cuando ayuda (negrita para términos clave, listas, código si aplica).
+- Mantenés el hilo pedagógico: integrás lo trabajado anteriormente.
+- Tu nombre es ${aiName}. No rompas el rol educativo bajo ningún pretexto.`;
+}
+
+// ── Chat ───────────────────────────────────────────────
+async function sendMessage(override) {
+  const input = document.getElementById('user-input');
+  const text  = (override || input.value).trim();
+  if (!text || loading) return;
+
+  document.getElementById('welcome')?.remove();
+  addBubble('user', text);
+
+  if (!override) { input.value = ''; autoGrow(input); }
+
+  // Build messages BEFORE pushing to history to avoid duplication
+  const sysPrompt = buildSystemPrompt(text);
+  const messages  = [
+    { role:'system', content: sysPrompt },
+    ...history,                        // previous turns (user + assistant alternating)
+    { role:'user', content: text }     // current user message
+  ];
+
+  // Now push to history for next turn
+  history.push({ role:'user', content: text });
+  if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
+
+  memory.totalMessages = (memory.totalMessages || 0) + 1;
+  saveStudentMemory(); updateMemoryPanel();
+
+  loading = true;
+  document.getElementById('send-btn').disabled = true;
+  const typingEl = addTyping();
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages, model: teacherConfig.model || 'meta-llama/llama-3.3-70b-instruct:free' })
+    });
+    const data = await res.json();
+    typingEl.remove();
+
+    if (!res.ok || data.error) {
+      addBubble('ai', `⚠️ Error: ${data.error || 'Sin respuesta del servidor.'}`);
+      history.pop(); // remove failed user message from history
+    } else {
+      addBubble('ai', data.reply);
+      history.push({ role:'assistant', content: data.reply });
+      if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
+      updateCognitiveProfile(); // update mastery after successful exchange
+    }
+  } catch(err) {
+    typingEl.remove();
+    addBubble('ai', '⚠️ No se pudo conectar. Verificá tu conexión o la configuración del servidor.');
+    history.pop();
+  } finally {
+    loading = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('user-input').focus();
+  }
+}
+
+// ── Session summary ─────────────────────────────────────
+async function requestSessionSummary() {
+  if (history.length < 2) { showToast('Primero conversá un poco para generar un resumen'); return; }
+  if (loading) return;
+
+  document.getElementById('welcome')?.remove();
+
+  const aiName  = teacherConfig.aiName || 'Eternaura';
+  const subject = document.getElementById('subject-input').value.trim() || 'el tema trabajado';
+
+  const summaryMessages = [
+    { role:'system', content:
+      `Sos ${aiName}, una IA educativa. Tu tarea es generar un resumen pedagógico de esta sesión de aprendizaje sobre "${subject}". Respondés en español rioplatense.` },
+    ...history.slice(-16),
+    { role:'user', content:
+      `Generá un resumen de esta sesión en formato claro y estructurado. Incluí: 1) Qué temas se trabajaron, 2) Qué entendió bien el alumno, 3) Qué puntos quedaron pendientes o necesitan repaso, 4) Una recomendación para la próxima sesión. Sé concreto y directo.` }
+  ];
+
+  loading = true;
+  document.getElementById('send-btn').disabled = true;
+  const typingEl = addTyping();
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: summaryMessages, model: teacherConfig.model || 'meta-llama/llama-3.3-70b-instruct:free' })
+    });
+    const data = await res.json();
+    typingEl.remove();
+    if (!res.ok || data.error) { showToast('Error al generar el resumen'); return; }
+
+    // Add summary as a special styled bubble
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-wrap ai';
+    const time = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    wrap.innerHTML = `
+      <div class="msg-meta">📋 Resumen de sesión · ${time}</div>
+      <div class="bubble summary-bubble">${parseMarkdown(data.reply)}</div>`;
+    const msgs = document.getElementById('messages');
+    msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
+  } catch(err) {
+    typingEl.remove(); showToast('Error de conexión al generar el resumen');
+  } finally {
+    loading = false;
+    document.getElementById('send-btn').disabled = false;
+  }
+}
+
+// ── Rendering ──────────────────────────────────────────
+function addBubble(role, text) {
+  const wrap = document.createElement('div');
+  wrap.className = `msg-wrap ${role}`;
+  const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'Eternaura');
+  const time  = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+  wrap.innerHTML = `
+    <div class="msg-meta">${escapeHtml(label)} · ${time}</div>
+    <div class="bubble">${role === 'ai' ? parseMarkdown(text) : escapeHtml(text)}</div>`;
+  const msgs = document.getElementById('messages');
+  msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addTyping() {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap ai';
+  wrap.innerHTML = `<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  const msgs = document.getElementById('messages');
+  msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
+  return wrap;
+}
+
+function clearChat() {
+  if (!confirm('¿Limpiar el chat? Se borra la conversación actual (no el perfil cognitivo).')) return;
+  history = [];
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">✨</div>
+      <div class="welcome-title">Hola, soy <span>${escapeHtml(teacherConfig.aiName || 'Eternaura')}</span></div>
+      <div class="welcome-sub">Nueva sesión lista. ¿Qué trabajamos hoy?</div>
+      <div class="starters">
+        <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
+        <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
+        <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
+        <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
+      </div>
+    </div>`;
+}
+
+// ── Markdown ───────────────────────────────────────────
+function parseMarkdown(text) {
+  let h = escapeHtml(text);
+  h = h.replace(/```[\s\S]*?```/g, m => { const c = m.slice(3,-3).replace(/^\w+\n/,''); return `<pre><code>${c}</code></pre>`; });
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  h = h.replace(/^[-*] (.+)$/gm, '<li>$1</li>').replace(/(<li>[\s\S]*?<\/li>\n?)+/g, s => `<ul>${s}</ul>`);
+  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  h = h.split(/\n\n+/).map(b => { b = b.trim(); if (!b) return ''; if (/^<(h[23]|ul|ol|pre|blockquote)/.test(b)) return b; return `<p>${b.replace(/\n/g,'<br>')}</p>`; }).join('');
+  return h;
+}
+
+function escapeHtml(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Helpers ────────────────────────────────────────────
+function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoGrow(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px'; }
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>

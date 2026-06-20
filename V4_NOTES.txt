@@ -1,0 +1,10 @@
+
+Eternaura V4 - Base de expansión
+
+Nuevos módulos previstos:
+- Perfil Cognitivo
+- Evaluador Académico
+- Memoria Pedagógica
+- Mapa del Conocimiento
+
+Esta versión incluye la estructura para comenzar la integración.
