@@ -102,3 +102,4 @@ Ver todos los modelos gratuitos: https://openrouter.ai/models?q=free
 - Los documentos **nunca salen del navegador** completos — solo se envían fragmentos relevantes al modelo con cada consulta.
 - La API key vive únicamente en las variables de entorno del servidor (Netlify/Cloudflare) y nunca es visible en el código del frontend.
 - La contraseña del panel docente se guarda en localStorage — no viaja a ningún servidor.
+
