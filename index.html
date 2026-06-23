@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Eternaura · IA Educativa</title>
+<title>ETERNEURA · IA Educativa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
@@ -41,7 +41,7 @@
 html, body { height: 100%; overflow: hidden; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; position: relative; }
 
-/* ── Aurora: identidad visual de fondo, ligada al nombre Eternaura ── */
+/* ── Aurora: identidad visual de fondo, ligada al nombre ETERNEURA ── */
 .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .aurora::before, .aurora::after { content: ''; position: absolute; border-radius: 50%; filter: blur(90px); opacity: .16; }
 .aurora::before {
@@ -272,6 +272,37 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .send-btn:disabled { opacity: .35; cursor: not-allowed; }
 .send-btn svg { width: 15px; height: 15px; }
 
+/* Attach image button */
+.attach-img-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; width: 34px; height: 34px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
+.attach-img-btn:hover { color: var(--teal); border-color: var(--teal); }
+.attach-img-btn.has-images { color: var(--teal); border-color: var(--teal); background: var(--teal-dim); }
+.attach-img-btn svg { width: 16px; height: 16px; }
+
+/* Image preview row above input */
+.image-preview-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+.image-preview-row:empty { display: none; }
+.img-thumb { position: relative; width: 52px; height: 52px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
+.img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.img-thumb-rm { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: rgba(10,12,17,.85); border: none; color: #fff; font-size: 11px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.img-thumb-rm:hover { background: var(--red); }
+
+/* Image bubble in chat */
+.bubble-img { max-width: 280px; border-radius: 10px; display: block; margin-bottom: 7px; border: 1px solid var(--border); }
+.bubble-img-grid { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+.bubble-img-grid img { max-width: 140px; max-height: 140px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
+
+/* AI-generated SVG diagrams */
+.diagram-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin: 8px 0; overflow-x: auto; }
+.diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
+/* Generación de imágenes realistas */
+.image-gen-pending { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 22px 14px; margin: 8px 0; text-align: center; }
+.img-gen-loading { display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 12.5px; color: var(--text-mid); }
+.img-gen-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-2); border-top-color: var(--teal); animation: spin .8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.img-gen-error { font-size: 12.5px; color: var(--red); background: var(--red-dim); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.generated-img { max-width: 100%; max-height: 420px; border-radius: 10px; border: 1px solid var(--border); display: block; margin: 8px 0; }
+
 /* Toast */
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--border-2); border-radius: 8px; padding: 9px 18px; font-size: 13px; color: var(--text); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
 .toast.show { opacity: 1; }
@@ -332,7 +363,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       <div class="modal-row">
         <div>
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Nombre de la IA</div>
-          <input class="field-input" id="cfg-ainame" placeholder="Ej: ProfeBot, AulaIA…" value="Eternaura"/>
+          <input class="field-input" id="cfg-ainame" placeholder="Ej: ProfeBot, AulaIA…" value="ETERNEURA"/>
         </div>
         <div>
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Materia / Área</div>
@@ -359,7 +390,12 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eternaura elige automáticamente entre varios modelos gratuitos (Groq primero, OpenRouter como respaldo) y cambia solo si alguno está saturado. No requiere configuración.</div>
+      <div class="modal-hint">ETERNEURA elige automáticamente entre varios modelos gratuitos (Groq primero, OpenRouter como respaldo) y cambia solo si alguno está saturado. Cuando se adjunta una imagen (plano, diagrama, foto), usa modelos gratuitos con visión (Qwen-VL, Llama Vision, Gemma) vía OpenRouter. No requiere configuración.</div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Generación de imágenes realistas</div>
+      <div class="modal-hint">Cuando un alumno pide una imagen realista (ej. "una imagen realista del sistema nervioso central"), ETERNEURA la genera con <strong>Cloudflare Workers AI · FLUX.1 schnell</strong> — gratis, sin tarjeta, ~230 imágenes/día de cuota.<br><br>⚠️ <strong>Solo funciona en deploy de Cloudflare Pages.</strong> En Netlify esta función no existe (Netlify no tiene equivalente gratuito de Workers AI). Si el sitio está en Netlify, los alumnos ven un aviso claro explicándolo y ETERNEURA ofrece un diagrama esquemático (SVG) en su lugar.<br><br>Para activar en Cloudflare: <strong>Settings → Functions → AI bindings → Add binding → nombre de variable: <code>AI</code></strong>. Sin ese paso, la generación fotorrealista tampoco funciona en Cloudflare y el alumno ve el mismo aviso.</div>
     </div>
 
     <div class="modal-section">
@@ -444,6 +480,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
           <button class="mode-btn" data-mode="direct" onclick="setMode('direct',this)"><span class="mode-icon">📖</span>Directo</button>
           <button class="mode-btn" data-mode="exercises" onclick="setMode('exercises',this)"><span class="mode-icon">✏️</span>Ejercicios</button>
           <button class="mode-btn" data-mode="evaluator" onclick="setMode('evaluator',this)"><span class="mode-icon">📊</span>Evaluador</button>
+          <button class="mode-btn" data-mode="technical" onclick="setMode('technical',this)" style="grid-column:1/-1"><span class="mode-icon">📐</span>Análisis Técnico (planos, imágenes, cálculos)</button>
         </div>
       </div>
 
@@ -505,21 +542,29 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     <div class="messages" id="messages">
       <div class="welcome" id="welcome">
         <div class="welcome-icon">✨</div>
-        <div class="welcome-title">Hola, soy <span id="welcome-ai-name">Eternaura</span></div>
+        <div class="welcome-title">Hola, soy <span id="welcome-ai-name">ETERNEURA</span></div>
         <div class="welcome-sub" id="welcome-sub">Tu compañero de aprendizaje. Elegí un modo, definí tu tema y empezá. Podés subir tus propios apuntes como base de conocimiento.</div>
         <div class="starters">
           <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
           <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
           <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
           <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
+          <button class="starter" onclick="sendMessage('Mostrame un diagrama de este tema')">📐 Mostrame un diagrama</button>
         </div>
       </div>
     </div>
 
     <div class="input-area">
       <div class="doc-hint" id="doc-hint"></div>
+      <div class="image-preview-row" id="image-preview-row"></div>
       <div class="input-wrap">
-        <textarea id="user-input" rows="1" placeholder="Escribí tu mensaje…"
+        <button class="attach-img-btn" id="attach-img-btn" onclick="document.getElementById('image-input').click()" title="Adjuntar imagen (plano, diagrama, foto de ejercicio…)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </button>
+        <input type="file" id="image-input" accept="image/png,image/jpeg,image/webp" multiple style="display:none" onchange="handleImageFiles(this.files)"/>
+        <textarea id="user-input" rows="1" placeholder="Escribí tu mensaje, o adjuntá una imagen (plano, diagrama, ejercicio)…"
           onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
         <button class="send-btn" id="send-btn" onclick="sendMessage()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -543,14 +588,15 @@ const TOP_CHUNKS      = 6;
 const DEFAULT_PWD     = 'docente2024';
 
 // Mastery delta by mode (how much each mode increases mastery per exchange)
-const MASTERY_DELTA = { socratic: 0.05, direct: 0.03, exercises: 0.06, evaluator: 0.08 };
+const MASTERY_DELTA = { socratic: 0.05, direct: 0.03, exercises: 0.06, evaluator: 0.08, technical: 0.04 };
 const MASTERY_INITIAL = 0.15;
 
 const MODE_LABELS = {
   socratic:  'Modo Socrático',
   direct:    'Modo Explicación Directa',
   exercises: 'Modo Ejercicios',
-  evaluator: 'Modo Evaluador'
+  evaluator: 'Modo Evaluador',
+  technical: 'Modo Análisis Técnico'
 };
 
 const MODE_PROMPTS = {
@@ -561,7 +607,9 @@ const MODE_PROMPTS = {
   exercises:
     'Generás ejercicios prácticos sobre el tema. Cuando el alumno responde, das feedback detallado: qué estuvo bien, qué hay que mejorar y por qué. Luego proponés el siguiente ejercicio de dificultad incremental.',
   evaluator:
-    'Evaluás las respuestas con criterio pedagógico riguroso pero empático. Señalás errores con precisión y amabilidad. Explicás el concepto correcto en profundidad. Usás un puntaje informal (ej: 7/10) con justificación. Al final, sugerís qué repasar.'
+    'Evaluás las respuestas con criterio pedagógico riguroso pero empático. Señalás errores con precisión y amabilidad. Explicás el concepto correcto en profundidad. Usás un puntaje informal (ej: 7/10) con justificación. Al final, sugerís qué repasar.',
+  technical:
+    'Analizás material técnico (planos arquitectónicos, esquemas estructurales, diagramas de instalaciones, imágenes médicas o anatómicas, gráficos científicos) con rigor profesional. Cuando el usuario suba una imagen: describís primero qué ves con precisión, luego identificás elementos clave (cotas, materiales, sistemas, estructuras anatómicas, etc.), y das un análisis técnico detallado citando, cuando aplique, la normativa o los principios relevantes (ej: normas CIRSOC para estructuras en Argentina, criterios de la OMS para anatomía, etc.). Usás terminología técnica correcta pero la explicás en términos accesibles. SIEMPRE aclarás al final de cualquier análisis estructural, eléctrico o de instalaciones que se trata de una lectura orientativa y educativa, y que cualquier proyecto real de construcción requiere la firma y revisión de un profesional matriculado (arquitecto/ingeniero) antes de ejecutarse, porque hay vidas en juego. Esta aclaración es honesta, no una forma de evadir la pregunta: das igual el análisis técnico completo que se te pide.'
 };
 
 // ── State ──────────────────────────────────────────────
@@ -573,6 +621,9 @@ let memory         = defaultMemory();
 let teacherConfig  = loadTeacherConfig();
 let teacherDocs    = [];
 let currentProfile = null;
+let pendingImages  = [];   // [{name, dataUrl}] — imágenes adjuntas pendientes de enviar
+const MAX_IMAGE_MB = 5;
+const MAX_IMAGES_PER_MSG = 3;
 const sessionTopicsTracked = new Set(); // tracks which topics got session++ this session
 
 const PROFILE_COLORS = ['#7c6af7','#2dd4bf','#f5a623','#f05252','#3b9eff','#3ecf7e'];
@@ -705,13 +756,14 @@ function resetChatToWelcome() {
   document.getElementById('messages').innerHTML = `
     <div class="welcome" id="welcome">
       <div class="welcome-icon">✨</div>
-      <div class="welcome-title">Hola${greetName}, soy <span>${escapeHtml(teacherConfig.aiName || 'Eternaura')}</span></div>
+      <div class="welcome-title">Hola${greetName}, soy <span>${escapeHtml(teacherConfig.aiName || 'ETERNEURA')}</span></div>
       <div class="welcome-sub">${subLine}</div>
       <div class="starters">
         <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
         <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
         <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
         <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
+        <button class="starter" onclick="sendMessage('Mostrame un diagrama de este tema')">📐 Mostrame un diagrama</button>
       </div>
     </div>`;
 }
@@ -724,7 +776,7 @@ function loadTeacherConfig() {
 }
 
 function defaultTeacherConfig() {
-  return { aiName:'Eternaura', subject:'', systemPrompt:'', defaultMode:'socratic',
+  return { aiName:'ETERNEURA', subject:'', systemPrompt:'', defaultMode:'socratic',
            password:DEFAULT_PWD, teacherDocs:[] };
 }
 
@@ -734,7 +786,7 @@ function saveTeacherConfigToStorage() {
 
 function applyTeacherConfig() {
   teacherDocs = (teacherConfig.teacherDocs || []).map(d => ({ name:d.name, text:d.text }));
-  const name = teacherConfig.aiName || 'Eternaura';
+  const name = teacherConfig.aiName || 'ETERNEURA';
   const nameEl = document.getElementById('ai-name-display');
   const half = Math.ceil(name.length / 2);
   nameEl.innerHTML = escapeHtml(name.slice(0, half)) + '<span>' + escapeHtml(name.slice(half)) + '</span>';
@@ -762,7 +814,7 @@ function checkPwd() {
 function closePwdGate() { document.getElementById('pwd-gate').classList.remove('open'); }
 
 function openTeacherModal() {
-  document.getElementById('cfg-ainame').value       = teacherConfig.aiName || 'Eternaura';
+  document.getElementById('cfg-ainame').value       = teacherConfig.aiName || 'ETERNEURA';
   document.getElementById('cfg-subject').value      = teacherConfig.subject || '';
   document.getElementById('cfg-systemprompt').value = teacherConfig.systemPrompt || '';
   document.getElementById('cfg-defaultmode').value  = teacherConfig.defaultMode || 'socratic';
@@ -775,7 +827,7 @@ function openTeacherModal() {
 function closeTeacherModal() { document.getElementById('teacher-modal').classList.remove('open'); }
 
 function saveTeacherConfig() {
-  teacherConfig.aiName       = document.getElementById('cfg-ainame').value.trim() || 'Eternaura';
+  teacherConfig.aiName       = document.getElementById('cfg-ainame').value.trim() || 'ETERNEURA';
   teacherConfig.subject      = document.getElementById('cfg-subject').value.trim();
   teacherConfig.systemPrompt = document.getElementById('cfg-systemprompt').value.trim();
   teacherConfig.defaultMode  = document.getElementById('cfg-defaultmode').value;
@@ -887,7 +939,7 @@ function onDropTeacher(e) { e.preventDefault(); e.currentTarget.classList.remove
 function exportConfig() {
   const blob = new Blob([JSON.stringify({ ...teacherConfig, teacherDocs: teacherDocs.filter(Boolean) }, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'eternaura-config.json'; a.click();
+  a.href = URL.createObjectURL(blob); a.download = 'eterneura-config.json'; a.click();
 }
 
 function importConfig(input) {
@@ -1125,6 +1177,59 @@ function onDragOver(e) { e.preventDefault(); document.querySelector('.sidebar .u
 function onDragLeave()  { document.querySelector('.sidebar .upload-zone')?.classList.remove('over'); }
 function onDrop(e)      { e.preventDefault(); onDragLeave(); handleStudentFiles(e.dataTransfer.files); }
 
+// ── Image attachments (chat input) ─────────────────────
+async function handleImageFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+
+  if (pendingImages.length + files.length > MAX_IMAGES_PER_MSG) {
+    showToast(`Máximo ${MAX_IMAGES_PER_MSG} imágenes por mensaje`);
+  }
+
+  for (const file of files.slice(0, MAX_IMAGES_PER_MSG - pendingImages.length)) {
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      showToast(`"${file.name}" pesa más de ${MAX_IMAGE_MB}MB — no se adjuntó`);
+      continue;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      pendingImages.push({ name: file.name, dataUrl });
+    } catch(e) { console.error('Error leyendo imagen', file.name, e); }
+  }
+
+  renderImagePreviews();
+  document.getElementById('image-input').value = '';
+}
+
+function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function renderImagePreviews() {
+  const row = document.getElementById('image-preview-row');
+  row.innerHTML = pendingImages.map((img, i) => `
+    <div class="img-thumb">
+      <img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">
+      <button class="img-thumb-rm" onclick="removePendingImage(${i})" title="Quitar">×</button>
+    </div>`).join('');
+  document.getElementById('attach-img-btn').classList.toggle('has-images', pendingImages.length > 0);
+}
+
+function removePendingImage(i) {
+  pendingImages.splice(i, 1);
+  renderImagePreviews();
+}
+
+function clearPendingImages() {
+  pendingImages = [];
+  renderImagePreviews();
+}
+
 // ── PDF & text extraction ──────────────────────────────
 async function extractPDF(file) {
   const buf = await file.arrayBuffer();
@@ -1187,9 +1292,9 @@ function buildDocContext(question) {
 }
 
 // ── System prompt ──────────────────────────────────────
-function buildSystemPrompt(question) {
+function buildSystemPrompt(question, hasImages) {
   const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'el tema en cuestión';
-  const aiName  = teacherConfig.aiName || 'Eternaura';
+  const aiName  = teacherConfig.aiName || 'ETERNEURA';
   const studentName = currentProfile?.name || null;
   const docCtx  = buildDocContext(question);
 
@@ -1204,6 +1309,10 @@ function buildSystemPrompt(question) {
     ? `INSTRUCCIONES DEL DOCENTE:\n${teacherConfig.systemPrompt}`
     : `Sos ${aiName}, una IA educativa diseñada para acompañar el aprendizaje de forma profunda, personalizada y rigurosa.`;
 
+  const imageInstruction = hasImages
+    ? `\nIMAGEN ADJUNTA: el alumno acaba de subir una o más imágenes (puede ser un plano, un diagrama anatómico, una foto de un ejercicio, un gráfico, etc.). Describí primero con precisión qué ves antes de analizar. Si es un plano o esquema técnico (estructural, eléctrico, de instalaciones), analizalo en profundidad citando normativa relevante cuando aplique, y aclará al final que es una lectura orientativa que no reemplaza la firma de un profesional matriculado. Si es contenido médico/anatómico, sé preciso con la terminología pero explicá en términos accesibles al nivel del alumno.\n`
+    : '';
+
   return `${coreInstruction}
 
 NOMBRE DE LA IA: ${aiName}
@@ -1211,13 +1320,25 @@ MATERIA / TEMA ACTUAL: ${subject}
 
 MODO PEDAGÓGICO ACTIVO:
 ${MODE_PROMPTS[mode] || MODE_PROMPTS.direct}
-
+${imageInstruction}
 PERFIL DEL ALUMNO:
 ${memLine}
 
 ${docCtx
   ? `BASE DOCUMENTAL (fragmentos relevantes):\n${docCtx}\nCuando tu respuesta se apoye en estos materiales, referenciá la fuente.`
   : 'No hay documentos cargados en esta sesión.'}
+
+CAPACIDAD DE DIAGRAMAS: cuando ayude más mostrar un diagrama esquemático que solo texto (anatomía, física, estructura, circuito, proceso, línea de tiempo, etc.), generalo vos mismo escribiendo código SVG real dentro de un bloque de código con el lenguaje "svg", así:
+\`\`\`svg
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">...</svg>
+\`\`\`
+El navegador del alumno renderiza ese SVG automáticamente como una imagen. Reglas para el SVG: usá viewBox (no width/height fijos en px grandes), colores con buen contraste sobre fondo blanco, texto legible con <text>, formas simples (<rect>, <circle>, <line>, <path>, <polygon>), y SIEMPRE rotulá las partes importantes con texto. No uses JavaScript ni eventos dentro del SVG. Generá el diagrama solo cuando realmente aporte claridad, no en cada respuesta.
+
+CAPACIDAD DE IMAGEN REALISTA: si el alumno pide específicamente una imagen realista o fotográfica (no un esquema rotulado, sino una ilustración visual real — ej: "una imagen realista del sistema nervioso central", "una foto de cómo se ve un volcán en erupción"), no lo hagas con SVG. En su lugar, escribí un bloque de código con el lenguaje "image-prompt" conteniendo SOLO una descripción en inglés, clara y visual, de la escena a generar (sin texto/letras dentro de la imagen, sin metadatos de la conversación, solo la descripción), así:
+\`\`\`image-prompt
+realistic medical illustration of the human central nervous system, anatomically accurate, labeled-free, educational textbook style
+\`\`\`
+El sistema genera la imagen real automáticamente a partir de esa descripción. Nunca generes imágenes realistas de personas reales, contenido violento, sexual o inapropiado: si el pedido va por ahí, explicá amablemente que no podés generar eso y ofrecé una alternativa educativa (ej. un diagrama SVG en su lugar). Usá esta capacidad solo cuando el alumno pida explícitamente algo "realista" o "como se ve de verdad"; para el resto, preferí el diagrama SVG, que es instantáneo.
 
 PRINCIPIOS TRANSVERSALES:
 - Respondés siempre en español rioplatense (vos, ustedes).
@@ -1232,24 +1353,36 @@ PRINCIPIOS TRANSVERSALES:
 async function sendMessage(override) {
   const input = document.getElementById('user-input');
   const text  = (override || input.value).trim();
-  if (!text || loading) return;
+  if ((!text && pendingImages.length === 0) || loading) return;
 
   document.getElementById('welcome')?.remove();
-  addBubble('user', text);
+
+  const imagesForThisMsg = pendingImages.slice();
+  addBubble('user', text, imagesForThisMsg);
 
   if (!override) { input.value = ''; autoGrow(input); }
 
+  // Build the current user message content: multimodal if images attached
+  const userContent = imagesForThisMsg.length
+    ? [
+        ...imagesForThisMsg.map(img => ({ type: 'image_url', image_url: { url: img.dataUrl } })),
+        { type: 'text', text: text || 'Analizá esta imagen en detalle.' }
+      ]
+    : text;
+
   // Build messages BEFORE pushing to history to avoid duplication
-  const sysPrompt = buildSystemPrompt(text);
+  const sysPrompt = buildSystemPrompt(text, imagesForThisMsg.length > 0);
   const messages  = [
     { role:'system', content: sysPrompt },
-    ...history,                        // previous turns (user + assistant alternating)
-    { role:'user', content: text }     // current user message
+    ...history,                          // previous turns (user + assistant alternating)
+    { role:'user', content: userContent } // current user message (text or multimodal)
   ];
 
   // Now push to history for next turn
-  history.push({ role:'user', content: text });
+  history.push({ role:'user', content: userContent });
   if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
+
+  clearPendingImages();
 
   memory.totalMessages = (memory.totalMessages || 0) + 1;
   saveStudentMemory(); updateMemoryPanel();
@@ -1261,7 +1394,7 @@ async function sendMessage(override) {
   try {
     const res  = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({ messages, hasImages: imagesForThisMsg.length > 0 })
     });
     const data = await res.json();
     typingEl.remove();
@@ -1293,7 +1426,7 @@ async function requestSessionSummary() {
 
   document.getElementById('welcome')?.remove();
 
-  const aiName  = teacherConfig.aiName || 'Eternaura';
+  const aiName  = teacherConfig.aiName || 'ETERNEURA';
   const subject = document.getElementById('subject-input').value.trim() || 'el tema trabajado';
 
   const summaryMessages = [
@@ -1335,16 +1468,64 @@ async function requestSessionSummary() {
 }
 
 // ── Rendering ──────────────────────────────────────────
-function addBubble(role, text) {
+function addBubble(role, text, images) {
   const wrap = document.createElement('div');
   wrap.className = `msg-wrap ${role}`;
-  const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'Eternaura');
+  const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'ETERNEURA');
   const time  = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+  const imgHtml = (images && images.length)
+    ? `<div class="bubble-img-grid">${images.map(img => `<img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">`).join('')}</div>`
+    : '';
   wrap.innerHTML = `
     <div class="msg-meta">${escapeHtml(label)} · ${time}</div>
-    <div class="bubble">${role === 'ai' ? parseMarkdown(text) : escapeHtml(text)}</div>`;
+    <div class="bubble">${imgHtml}${role === 'ai' ? parseMarkdown(text) : escapeHtml(text)}</div>`;
   const msgs = document.getElementById('messages');
   msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
+  if (role === 'ai') triggerPendingImageGenerations(wrap);
+}
+
+// ── Generación de imágenes realistas (Cloudflare Workers AI) ──────
+const pendingImagePrompts = new Map();
+let imgGenCounter = 0;
+
+function triggerPendingImageGenerations(scopeEl) {
+  scopeEl.querySelectorAll('.image-gen-pending').forEach(el => {
+    const id = el.getAttribute('data-gen-id');
+    if (id && pendingImagePrompts.has(id)) generateImageFor(id, el);
+  });
+}
+
+async function generateImageFor(id, el) {
+  const prompt = pendingImagePrompts.get(id);
+  pendingImagePrompts.delete(id);
+  if (!prompt) return;
+  try {
+    const res  = await fetch('/api/image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 404) {
+      // /api/image no existe — deploy en Netlify
+      el.innerHTML = `<div class="img-gen-error">📋 La generación de imágenes realistas solo funciona en el deploy de Cloudflare Pages. En esta instalación (Netlify) no está disponible. Podés pedirme un diagrama esquemático del mismo tema escribiendo "mostrame un diagrama de..."</div>`;
+      return;
+    }
+    if (res.status === 501) {
+      // Existe en Cloudflare pero falta el binding AI
+      el.innerHTML = `<div class="img-gen-error">⚙️ La generación de imágenes no está activada aún. El docente debe activar el binding de Workers AI en Cloudflare: <strong>Settings → Functions → AI bindings → Add binding → variable: AI</strong>. Mientras tanto, podés pedirme un diagrama esquemático del tema.</div>`;
+      return;
+    }
+    if (!res.ok || data.error) {
+      el.innerHTML = `<div class="img-gen-error">⚠️ No se pudo generar la imagen. ${escapeHtml(data.error || 'Error desconocido — intentá de nuevo en unos minutos.')}</div>`;
+      return;
+    }
+    el.innerHTML = `<img src="${data.image}" alt="Imagen generada" class="generated-img"/>`;
+  } catch (err) {
+    el.innerHTML = `<div class="img-gen-error">⚠️ Error de conexión al generar la imagen. Verificá tu conexión e intentá de nuevo.</div>`;
+  }
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function addTyping() {
@@ -1364,7 +1545,24 @@ function clearChat() {
 
 // ── Markdown ───────────────────────────────────────────
 function parseMarkdown(text) {
-  let h = escapeHtml(text);
+  // Extraer bloques ```svg ... ``` ANTES de escapar, para renderizar el SVG real
+  // (sanitizado) en vez de mostrarlo como texto/código.
+  const svgBlocks = [];
+  let working = String(text).replace(/```svg\s*([\s\S]*?)```/gi, (m, svgCode) => {
+    const idx = svgBlocks.length;
+    svgBlocks.push(sanitizeSvg(svgCode.trim()));
+    return `\u0000SVGBLOCK${idx}\u0000`;
+  });
+
+  // Extraer bloques ```image-prompt ... ``` — se reemplazan por un placeholder
+  // de carga; la imagen real se pide a /api/image después de insertar la burbuja.
+  working = working.replace(/```image-prompt\s*([\s\S]*?)```/gi, (m, prompt) => {
+    const id = 'img_' + (++imgGenCounter) + '_' + Date.now().toString(36);
+    pendingImagePrompts.set(id, prompt.trim().slice(0, 600));
+    return `\u0000IMGBLOCK${id}\u0000`;
+  });
+
+  let h = escapeHtml(working);
   h = h.replace(/```[\s\S]*?```/g, m => { const c = m.slice(3,-3).replace(/^\w+\n/,''); return `<pre><code>${c}</code></pre>`; });
   h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
   h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -1375,7 +1573,41 @@ function parseMarkdown(text) {
   h = h.replace(/^[-*] (.+)$/gm, '<li>$1</li>').replace(/(<li>[\s\S]*?<\/li>\n?)+/g, s => `<ul>${s}</ul>`);
   h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
   h = h.split(/\n\n+/).map(b => { b = b.trim(); if (!b) return ''; if (/^<(h[23]|ul|ol|pre|blockquote)/.test(b)) return b; return `<p>${b.replace(/\n/g,'<br>')}</p>`; }).join('');
+
+  // Reinsertar los SVGs ya sanitizados (fuera del escapeHtml, como markup real)
+  h = h.replace(/\u0000SVGBLOCK(\d+)\u0000/g, (m, idx) => {
+    const svg = svgBlocks[Number(idx)];
+    return svg ? `<div class="diagram-box">${svg}</div>` : '';
+  });
+  // Reinsertar el placeholder de generación de imagen realista
+  h = h.replace(/\u0000IMGBLOCK([a-z0-9_]+)\u0000/gi, (m, id) =>
+    `<div class="image-gen-pending" data-gen-id="${id}"><div class="img-gen-loading"><span class="img-gen-spinner"></span>Generando imagen realista…</div></div>`
+  );
+  // Limpiar <p> vacíos que pudieran haber quedado envolviendo el placeholder
+  h = h.replace(/<p>\s*<\/p>/g, '');
+
   return h;
+}
+
+// Sanitización básica de SVG generado por el modelo: solo permite el tag <svg>
+// y sus elementos gráficos internos habituales; remueve <script>, on*=, etc.
+function sanitizeSvg(raw) {
+  // Debe empezar con <svg ...> y terminar en </svg>; si no, lo descartamos.
+  const match = raw.match(/<svg[\s\S]*<\/svg>/i);
+  if (!match) return '';
+  let svg = match[0];
+  // Eliminar tags peligrosos
+  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '');
+  svg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '');
+  svg = svg.replace(/<style[\s\S]*?<\/style>/gi, '');
+  // Eliminar atributos de eventos (onclick, onload, etc.) y href javascript:
+  svg = svg.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
+  svg = svg.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
+  // Eliminar referencias a recursos externos (http/https) en href — solo se permiten
+  // referencias internas (#id) o data: URIs, para evitar carga de contenido ajeno.
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']https?:[^"']*["']/gi, '');
+  return svg;
 }
 
 function escapeHtml(t) {
