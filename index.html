@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ETERNEURA · IA Educativa</title>
+<title>Eterneura · IA Educativa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
@@ -41,7 +41,7 @@
 html, body { height: 100%; overflow: hidden; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; position: relative; }
 
-/* ── Aurora: identidad visual de fondo, ligada al nombre ETERNEURA ── */
+/* ── Aurora: identidad visual de fondo, ligada al nombre Eterneura ── */
 .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .aurora::before, .aurora::after { content: ''; position: absolute; border-radius: 50%; filter: blur(90px); opacity: .16; }
 .aurora::before {
@@ -87,7 +87,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .sb-label { font-size: 10px; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
 
 /* Mode */
-.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
 .mode-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; cursor: pointer; color: var(--text-mid); font-size: 11.5px; text-align: center; transition: all .15s; line-height: 1.3; font-family: var(--font); }
 .mode-btn:hover { border-color: var(--accent); color: var(--text); }
 .mode-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
@@ -303,13 +303,106 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .img-gen-error { font-size: 12.5px; color: var(--red); background: var(--red-dim); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
 .generated-img { max-width: 100%; max-height: 420px; border-radius: 10px; border: 1px solid var(--border); display: block; margin: 8px 0; }
 
+/* Hamburger button — oculto en desktop, visible solo en mobile vía media query */
+.hamburger {
+  display: none; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; color: var(--text-mid); cursor: pointer;
+  font-size: 16px; line-height: 1; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.hamburger:hover { color: var(--text); border-color: var(--text-muted); }
+
+/* Overlay oscuro detrás de la sidebar en mobile — vive dentro de .app */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0; z-index: 75;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(2px);
+}
+
+/* ── Verdict cards (modo Verificador) ── */
+.verdict-card {
+  border-radius: 12px; padding: 14px 16px; margin: 10px 0;
+  border-left: 4px solid; display: flex; flex-direction: column; gap: 8px;
+}
+.verdict-card.falso         { background: var(--red-dim);        border-color: var(--red);          }
+.verdict-card.verdadero     { background: var(--green-dim);       border-color: var(--green);        }
+.verdict-card.cuestionable  { background: var(--amber-dim);       border-color: var(--amber);        }
+.verdict-card.no-verificable{ background: var(--surface-3);       border-color: var(--text-muted);   }
+.verdict-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-weight: 700;
+  font-size: 12.5px; border-radius: 6px; padding: 4px 10px; width: fit-content;
+}
+.verdict-card.falso          .verdict-badge { background: var(--red);        color: #fff;       }
+.verdict-card.verdadero      .verdict-badge { background: var(--green);       color: #0a0c11;    }
+.verdict-card.cuestionable   .verdict-badge { background: var(--amber);       color: #0a0c11;    }
+.verdict-card.no-verificable .verdict-badge { background: var(--text-muted);  color: var(--text);}
+.verdict-body { font-size: 13.5px; line-height: 1.65; }
+
 /* Toast */
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--border-2); border-radius: 8px; padding: 9px 18px; font-size: 13px; color: var(--text); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
 .toast.show { opacity: 1; }
 
 @media (max-width: 640px) {
-  :root { --sidebar-w: 230px; }
-  .bubble { max-width: 90%; }
+  :root { --sidebar-w: 280px; }
+  .bubble { max-width: 92%; }
+
+  /* Sidebar se oculta fuera de pantalla por defecto en mobile */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 80;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow: 4px 0 24px rgba(0,0,0,.6);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Overlay: solo sobreescribir z-index y activar con .open */
+  .sidebar-overlay { z-index: 75; }
+  .sidebar-overlay.open { display: block; }
+
+  /* Botón hamburguesa */
+  .hamburger { display: flex !important; }
+
+  /* Chat ocupa todo el ancho */
+  .chat-header { padding: 10px 14px; }
+  .head-actions { gap: 5px; }
+  .icon-btn { padding: 7px 9px; font-size: 11.5px; }
+
+  /* Input más grande y táctil */
+  .input-area { padding: 10px 12px 14px; }
+  #user-input { font-size: 16px; } /* evita zoom automático de iOS */
+  .send-btn { width: 40px; height: 40px; border-radius: 9px; }
+
+  /* Modales a pantalla completa */
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal {
+    width: 100% !important; max-width: 100% !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 92vh; padding: 20px 16px;
+  }
+
+  /* Profile gate centrado y sin borde extra */
+  .profile-gate { padding: 16px; }
+  .profile-gate-box { width: 100%; }
+  .profile-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+
+  /* Password gate */
+  .pwd-box { width: 92vw; padding: 22px 18px; }
+
+  /* Modo grid compacto */
+  .mode-grid { gap: 5px; }
+  .mode-btn { padding: 7px 4px; font-size: 11px; }
+
+  /* Burbuja del mapa en mobile */
+  #map-canvas svg { max-height: 46vh; }
+
+  /* Verdict cards a ancho completo */
+  .verdict-card { border-radius: 10px; }
+}
+
+/* Pantallas muy pequeñas */
+@media (max-width: 380px) {
+  .head-mode { font-size: 12px; }
+  .icon-btn { padding: 6px 7px; font-size: 11px; }
+  .mode-btn { font-size: 10.5px; }
 }
 </style>
 </head>
@@ -363,7 +456,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       <div class="modal-row">
         <div>
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Nombre de la IA</div>
-          <input class="field-input" id="cfg-ainame" placeholder="Ej: ProfeBot, AulaIA…" value="ETERNEURA"/>
+          <input class="field-input" id="cfg-ainame" placeholder="Ej: ProfeBot, AulaIA…" value="Eterneura"/>
         </div>
         <div>
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Materia / Área</div>
@@ -390,12 +483,12 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">ETERNEURA elige automáticamente entre varios modelos gratuitos (Groq primero, OpenRouter como respaldo) y cambia solo si alguno está saturado. Cuando se adjunta una imagen (plano, diagrama, foto), usa modelos gratuitos con visión (Qwen-VL, Llama Vision, Gemma) vía OpenRouter. No requiere configuración.</div>
+      <div class="modal-hint">Eterneura elige automáticamente entre varios modelos gratuitos (Groq primero, OpenRouter como respaldo) y cambia solo si alguno está saturado. Cuando se adjunta una imagen (plano, diagrama, foto), usa modelos gratuitos con visión (Qwen-VL, Llama Vision, Gemma) vía OpenRouter. No requiere configuración.</div>
     </div>
 
     <div class="modal-section">
       <div class="modal-label">Generación de imágenes realistas</div>
-      <div class="modal-hint">Cuando un alumno pide una imagen realista (ej. "una imagen realista del sistema nervioso central"), ETERNEURA la genera con <strong>Cloudflare Workers AI · FLUX.1 schnell</strong> — gratis, sin tarjeta, ~230 imágenes/día de cuota.<br><br>⚠️ <strong>Solo funciona en deploy de Cloudflare Pages.</strong> En Netlify esta función no existe (Netlify no tiene equivalente gratuito de Workers AI). Si el sitio está en Netlify, los alumnos ven un aviso claro explicándolo y ETERNEURA ofrece un diagrama esquemático (SVG) en su lugar.<br><br>Para activar en Cloudflare: <strong>Settings → Functions → AI bindings → Add binding → nombre de variable: <code>AI</code></strong>. Sin ese paso, la generación fotorrealista tampoco funciona en Cloudflare y el alumno ve el mismo aviso.</div>
+      <div class="modal-hint">Cuando un alumno pide explícitamente una imagen realista (ej. "una imagen realista del sistema nervioso"), Eterneura la genera de verdad con Cloudflare Workers AI — gratis, sin tarjeta. Requiere un paso único de activación en Cloudflare: <strong>Settings → Functions → AI bindings → Add binding → nombre de variable "AI"</strong>. Solo funciona en el deploy de Cloudflare (Netlify no tiene equivalente gratuito). Si no está activado, Eterneura ofrece un diagrama esquemático (SVG) en su lugar, que sí funciona siempre.</div>
     </div>
 
     <div class="modal-section">
@@ -462,10 +555,11 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 <div class="toast" id="toast"></div>
 
 <div class="app">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sb-logo">
-      <div class="logo-name" id="ai-name-display">Eter<span>naura</span></div>
+      <div class="logo-name" id="ai-name-display">Etern<span>eura</span></div>
       <div class="logo-tag">IA Educativa · v4</div>
     </div>
 
@@ -480,7 +574,8 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
           <button class="mode-btn" data-mode="direct" onclick="setMode('direct',this)"><span class="mode-icon">📖</span>Directo</button>
           <button class="mode-btn" data-mode="exercises" onclick="setMode('exercises',this)"><span class="mode-icon">✏️</span>Ejercicios</button>
           <button class="mode-btn" data-mode="evaluator" onclick="setMode('evaluator',this)"><span class="mode-icon">📊</span>Evaluador</button>
-          <button class="mode-btn" data-mode="technical" onclick="setMode('technical',this)" style="grid-column:1/-1"><span class="mode-icon">📐</span>Análisis Técnico (planos, imágenes, cálculos)</button>
+          <button class="mode-btn" data-mode="technical" onclick="setMode('technical',this)"><span class="mode-icon">📐</span>Técnico</button>
+          <button class="mode-btn" data-mode="verifier" onclick="setMode('verifier',this)"><span class="mode-icon">🛡️</span>Verificador</button>
         </div>
       </div>
 
@@ -528,6 +623,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   <!-- Main chat -->
   <main class="main">
     <div class="chat-header">
+      <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Abrir menú">☰</button>
       <div class="head-status"></div>
       <div class="head-info">
         <div class="head-mode" id="head-mode">Modo Socrático</div>
@@ -542,7 +638,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     <div class="messages" id="messages">
       <div class="welcome" id="welcome">
         <div class="welcome-icon">✨</div>
-        <div class="welcome-title">Hola, soy <span id="welcome-ai-name">ETERNEURA</span></div>
+        <div class="welcome-title">Hola, soy <span id="welcome-ai-name">Eterneura</span></div>
         <div class="welcome-sub" id="welcome-sub">Tu compañero de aprendizaje. Elegí un modo, definí tu tema y empezá. Podés subir tus propios apuntes como base de conocimiento.</div>
         <div class="starters">
           <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
@@ -588,7 +684,7 @@ const TOP_CHUNKS      = 6;
 const DEFAULT_PWD     = 'docente2024';
 
 // Mastery delta by mode (how much each mode increases mastery per exchange)
-const MASTERY_DELTA = { socratic: 0.05, direct: 0.03, exercises: 0.06, evaluator: 0.08, technical: 0.04 };
+const MASTERY_DELTA = { socratic: 0.05, direct: 0.03, exercises: 0.06, evaluator: 0.08, technical: 0.04, verifier: 0.04 };
 const MASTERY_INITIAL = 0.15;
 
 const MODE_LABELS = {
@@ -596,7 +692,8 @@ const MODE_LABELS = {
   direct:    'Modo Explicación Directa',
   exercises: 'Modo Ejercicios',
   evaluator: 'Modo Evaluador',
-  technical: 'Modo Análisis Técnico'
+  technical: 'Modo Análisis Técnico',
+  verifier:  'Modo Verificador de Contenido'
 };
 
 const MODE_PROMPTS = {
@@ -609,7 +706,35 @@ const MODE_PROMPTS = {
   evaluator:
     'Evaluás las respuestas con criterio pedagógico riguroso pero empático. Señalás errores con precisión y amabilidad. Explicás el concepto correcto en profundidad. Usás un puntaje informal (ej: 7/10) con justificación. Al final, sugerís qué repasar.',
   technical:
-    'Analizás material técnico (planos arquitectónicos, esquemas estructurales, diagramas de instalaciones, imágenes médicas o anatómicas, gráficos científicos) con rigor profesional. Cuando el usuario suba una imagen: describís primero qué ves con precisión, luego identificás elementos clave (cotas, materiales, sistemas, estructuras anatómicas, etc.), y das un análisis técnico detallado citando, cuando aplique, la normativa o los principios relevantes (ej: normas CIRSOC para estructuras en Argentina, criterios de la OMS para anatomía, etc.). Usás terminología técnica correcta pero la explicás en términos accesibles. SIEMPRE aclarás al final de cualquier análisis estructural, eléctrico o de instalaciones que se trata de una lectura orientativa y educativa, y que cualquier proyecto real de construcción requiere la firma y revisión de un profesional matriculado (arquitecto/ingeniero) antes de ejecutarse, porque hay vidas en juego. Esta aclaración es honesta, no una forma de evadir la pregunta: das igual el análisis técnico completo que se te pide.'
+    'Analizás material técnico (planos arquitectónicos, esquemas estructurales, diagramas de instalaciones, imágenes médicas o anatómicas, gráficos científicos) con rigor profesional. Cuando el usuario suba una imagen: describís primero qué ves con precisión, luego identificás elementos clave (cotas, materiales, sistemas, estructuras anatómicas, etc.), y das un análisis técnico detallado citando, cuando aplique, la normativa o los principios relevantes (ej: normas CIRSOC para estructuras en Argentina, criterios de la OMS para anatomía, etc.). Usás terminología técnica correcta pero la explicás en términos accesibles. SIEMPRE aclarás al final de cualquier análisis estructural, eléctrico o de instalaciones que se trata de una lectura orientativa y educativa, y que cualquier proyecto real de construcción requiere la firma y revisión de un profesional matriculado (arquitecto/ingeniero) antes de ejecutarse, porque hay vidas en juego. Esta aclaración es honesta, no una forma de evadir la pregunta: das igual el análisis técnico completo que se te pide.',
+  verifier:
+    `Sos Eterneura en modo Verificador de Contenido. Tu misión es analizar críticamente afirmaciones, noticias, titulares, imágenes o descripciones de videos para detectar desinformación y educar al usuario en pensamiento crítico.
+
+TIPOS DE DESINFORMACIÓN QUE DETECTÁS:
+- Fake news: noticias fabricadas, tergiversadas o sacadas de contexto
+- Pseudociencia y medicina alternativa sin evidencia (ej: "el bicarbonato cura el cáncer", "las vacunas causan autismo", "el limón alcaliniza la sangre")
+- Deepfakes: imágenes o videos generados o manipulados con IA
+- Cheapfakes: material real con contexto manipulado (fecha incorrecta, persona mal atribuida, lugar equivocado)
+- Teorías conspirativas y contenido sensacionalista
+- Estadísticas o datos manipulados
+
+CÓMO ANALIZÁS CADA CASO:
+1. Identificás el tipo de contenido que se te presenta
+2. Explicás por qué es falso, cuestionable o verdadero con argumentos concretos
+3. Si hay imagen adjunta, buscás señales de manipulación: bordes irregulares en cabello/ropa, inconsistencias en iluminación o sombras, simetría facial antinatural, dedos/manos deformados, fondos incoherentes
+4. Citás el mecanismo de engaño (qué técnica usa para parecer creíble)
+5. Das fuentes confiables para verificar
+
+FORMATO DE RESPUESTA OBLIGATORIO:
+Tu primera línea siempre es el veredicto, con este formato exacto (una de estas cuatro opciones):
+VEREDICTO: FALSO
+VEREDICTO: CUESTIONABLE
+VEREDICTO: VERDADERO
+VEREDICTO: NO VERIFICABLE
+
+Luego desarrollás el análisis con secciones claras. Al final, SIEMPRE incluís una sección "Cómo verificar" con al menos 2 fuentes confiables apropiadas para el tema (Chequeado.com para Argentina, AFP Factual, Google Fact Check, Snopes, PubMed para temas médicos, CONICET para ciencia argentina, etc.).
+
+PRINCIPIO EDUCATIVO: el objetivo no es solo decir "esto es falso" sino enseñar al usuario a detectarlo por sí mismo la próxima vez. Explicá el razonamiento, no solo la conclusión.`
 };
 
 // ── State ──────────────────────────────────────────────
@@ -756,7 +881,7 @@ function resetChatToWelcome() {
   document.getElementById('messages').innerHTML = `
     <div class="welcome" id="welcome">
       <div class="welcome-icon">✨</div>
-      <div class="welcome-title">Hola${greetName}, soy <span>${escapeHtml(teacherConfig.aiName || 'ETERNEURA')}</span></div>
+      <div class="welcome-title">Hola${greetName}, soy <span>${escapeHtml(teacherConfig.aiName || 'Eterneura')}</span></div>
       <div class="welcome-sub">${subLine}</div>
       <div class="starters">
         <button class="starter" onclick="sendMessage('¿Por dónde empezamos?')">¿Por dónde empezamos?</button>
@@ -776,7 +901,7 @@ function loadTeacherConfig() {
 }
 
 function defaultTeacherConfig() {
-  return { aiName:'ETERNEURA', subject:'', systemPrompt:'', defaultMode:'socratic',
+  return { aiName:'Eterneura', subject:'', systemPrompt:'', defaultMode:'socratic',
            password:DEFAULT_PWD, teacherDocs:[] };
 }
 
@@ -786,7 +911,7 @@ function saveTeacherConfigToStorage() {
 
 function applyTeacherConfig() {
   teacherDocs = (teacherConfig.teacherDocs || []).map(d => ({ name:d.name, text:d.text }));
-  const name = teacherConfig.aiName || 'ETERNEURA';
+  const name = teacherConfig.aiName || 'Eterneura';
   const nameEl = document.getElementById('ai-name-display');
   const half = Math.ceil(name.length / 2);
   nameEl.innerHTML = escapeHtml(name.slice(0, half)) + '<span>' + escapeHtml(name.slice(half)) + '</span>';
@@ -814,7 +939,7 @@ function checkPwd() {
 function closePwdGate() { document.getElementById('pwd-gate').classList.remove('open'); }
 
 function openTeacherModal() {
-  document.getElementById('cfg-ainame').value       = teacherConfig.aiName || 'ETERNEURA';
+  document.getElementById('cfg-ainame').value       = teacherConfig.aiName || 'Eterneura';
   document.getElementById('cfg-subject').value      = teacherConfig.subject || '';
   document.getElementById('cfg-systemprompt').value = teacherConfig.systemPrompt || '';
   document.getElementById('cfg-defaultmode').value  = teacherConfig.defaultMode || 'socratic';
@@ -827,7 +952,7 @@ function openTeacherModal() {
 function closeTeacherModal() { document.getElementById('teacher-modal').classList.remove('open'); }
 
 function saveTeacherConfig() {
-  teacherConfig.aiName       = document.getElementById('cfg-ainame').value.trim() || 'ETERNEURA';
+  teacherConfig.aiName       = document.getElementById('cfg-ainame').value.trim() || 'Eterneura';
   teacherConfig.subject      = document.getElementById('cfg-subject').value.trim();
   teacherConfig.systemPrompt = document.getElementById('cfg-systemprompt').value.trim();
   teacherConfig.defaultMode  = document.getElementById('cfg-defaultmode').value;
@@ -982,6 +1107,7 @@ function setMode(m, btn) {
   mode = m;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active'); updateModeHead(); saveSettings();
+  if (window.innerWidth <= 640) closeSidebar(); // cerrar sidebar en mobile al elegir modo
 }
 
 function updateModeHead() { document.getElementById('head-mode').textContent = MODE_LABELS[mode] || mode; }
@@ -1294,7 +1420,7 @@ function buildDocContext(question) {
 // ── System prompt ──────────────────────────────────────
 function buildSystemPrompt(question, hasImages) {
   const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'el tema en cuestión';
-  const aiName  = teacherConfig.aiName || 'ETERNEURA';
+  const aiName  = teacherConfig.aiName || 'Eterneura';
   const studentName = currentProfile?.name || null;
   const docCtx  = buildDocContext(question);
 
@@ -1316,6 +1442,17 @@ function buildSystemPrompt(question, hasImages) {
   return `${coreInstruction}
 
 NOMBRE DE LA IA: ${aiName}
+
+IDENTIDAD — ESTO ES CRÍTICO, NUNCA LO IGNORÉS:
+- Sos ${aiName}, una IA educativa. Ese es tu único nombre e identidad.
+- NO sos ChatGPT, GPT-4, ni ninguna IA de OpenAI.
+- NO sos Claude ni ninguna IA de Anthropic.
+- NO sos Gemini ni ninguna IA de Google.
+- NO sos Copilot ni ninguna IA de Microsoft.
+- No revelarás qué modelo de lenguaje te impulsa ni qué empresa lo desarrolló. Si te preguntan, decís: "Soy ${aiName}, una IA educativa. Los detalles técnicos del motor que uso no son relevantes para tu aprendizaje."
+- Si te preguntan quién te construyó o creó, decís: "${aiName} fue desarrollada como una plataforma educativa independiente para acompañar el aprendizaje."
+- Si te preguntan sobre tokens, contexto técnico o límites internos, los explicás brevemente en términos educativos simples y redirigís al tema de estudio.
+- Bajo ninguna circunstancia rompas este rol o reveles información sobre tu arquitectura interna.
 MATERIA / TEMA ACTUAL: ${subject}
 
 MODO PEDAGÓGICO ACTIVO:
@@ -1426,7 +1563,7 @@ async function requestSessionSummary() {
 
   document.getElementById('welcome')?.remove();
 
-  const aiName  = teacherConfig.aiName || 'ETERNEURA';
+  const aiName  = teacherConfig.aiName || 'Eterneura';
   const subject = document.getElementById('subject-input').value.trim() || 'el tema trabajado';
 
   const summaryMessages = [
@@ -1471,7 +1608,7 @@ async function requestSessionSummary() {
 function addBubble(role, text, images) {
   const wrap = document.createElement('div');
   wrap.className = `msg-wrap ${role}`;
-  const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'ETERNEURA');
+  const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'Eterneura');
   const time  = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
   const imgHtml = (images && images.length)
     ? `<div class="bubble-img-grid">${images.map(img => `<img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">`).join('')}</div>`
@@ -1505,24 +1642,13 @@ async function generateImageFor(id, el) {
       body: JSON.stringify({ prompt })
     });
     const data = await res.json().catch(() => ({}));
-
-    if (res.status === 404) {
-      // /api/image no existe — deploy en Netlify
-      el.innerHTML = `<div class="img-gen-error">📋 La generación de imágenes realistas solo funciona en el deploy de Cloudflare Pages. En esta instalación (Netlify) no está disponible. Podés pedirme un diagrama esquemático del mismo tema escribiendo "mostrame un diagrama de..."</div>`;
-      return;
-    }
-    if (res.status === 501) {
-      // Existe en Cloudflare pero falta el binding AI
-      el.innerHTML = `<div class="img-gen-error">⚙️ La generación de imágenes no está activada aún. El docente debe activar el binding de Workers AI en Cloudflare: <strong>Settings → Functions → AI bindings → Add binding → variable: AI</strong>. Mientras tanto, podés pedirme un diagrama esquemático del tema.</div>`;
-      return;
-    }
     if (!res.ok || data.error) {
-      el.innerHTML = `<div class="img-gen-error">⚠️ No se pudo generar la imagen. ${escapeHtml(data.error || 'Error desconocido — intentá de nuevo en unos minutos.')}</div>`;
+      el.innerHTML = `<div class="img-gen-error">⚠️ No se pudo generar la imagen realista. ${escapeHtml(data.error || '')}</div>`;
       return;
     }
     el.innerHTML = `<img src="${data.image}" alt="Imagen generada" class="generated-img"/>`;
   } catch (err) {
-    el.innerHTML = `<div class="img-gen-error">⚠️ Error de conexión al generar la imagen. Verificá tu conexión e intentá de nuevo.</div>`;
+    el.innerHTML = `<div class="img-gen-error">⚠️ Error de conexión generando la imagen.</div>`;
   }
   const msgs = document.getElementById('messages');
   msgs.scrollTop = msgs.scrollHeight;
@@ -1545,6 +1671,34 @@ function clearChat() {
 
 // ── Markdown ───────────────────────────────────────────
 function parseMarkdown(text) {
+  // ── Renderizar bloque VEREDICTO: ── (modo Verificador)
+  // El modelo genera "VEREDICTO: FALSO/VERDADERO/CUESTIONABLE/NO VERIFICABLE"
+  // como primera línea; lo convertimos en una tarjeta visual de veredicto.
+  const VERDICT_MAP = {
+    'FALSO':          { cls: 'falso',          icon: '❌', label: 'FALSO' },
+    'VERDADERO':      { cls: 'verdadero',       icon: '✅', label: 'VERDADERO' },
+    'CUESTIONABLE':   { cls: 'cuestionable',    icon: '⚠️', label: 'CUESTIONABLE' },
+    'NO VERIFICABLE': { cls: 'no-verificable',  icon: '❓', label: 'NO VERIFICABLE' }
+  };
+  let verdictHtml = '';
+  let body = text;
+  const verdictMatch = text.match(/^VEREDICTO:\s*(FALSO|VERDADERO|CUESTIONABLE|NO VERIFICABLE)/im);
+  if (verdictMatch) {
+    const key = verdictMatch[1].trim().toUpperCase();
+    const vd  = VERDICT_MAP[key] || VERDICT_MAP['NO VERIFICABLE'];
+    body = text.replace(/^VEREDICTO:\s*[^\n]+\n?/im, '').trim();
+    verdictHtml = `<div class="verdict-card ${vd.cls}">
+      <div class="verdict-badge">${vd.icon} ${vd.label}</div>
+      <div class="verdict-body">${renderMarkdownBody(body)}</div>
+    </div>`;
+    return verdictHtml;
+  }
+  // Si llegamos acá no hay veredicto — procesamos markdown normal
+  return renderMarkdownBody(text);
+}
+
+// Función interna compartida entre parseMarkdown y el cuerpo de las verdict-cards
+function renderMarkdownBody(text) {
   // Extraer bloques ```svg ... ``` ANTES de escapar, para renderizar el SVG real
   // (sanitizado) en vez de mostrarlo como texto/código.
   const svgBlocks = [];
@@ -1583,9 +1737,8 @@ function parseMarkdown(text) {
   h = h.replace(/\u0000IMGBLOCK([a-z0-9_]+)\u0000/gi, (m, id) =>
     `<div class="image-gen-pending" data-gen-id="${id}"><div class="img-gen-loading"><span class="img-gen-spinner"></span>Generando imagen realista…</div></div>`
   );
-  // Limpiar <p> vacíos que pudieran haber quedado envolviendo el placeholder
+  // Limpiar <p> vacíos
   h = h.replace(/<p>\s*<\/p>/g, '');
-
   return h;
 }
 
@@ -1615,6 +1768,24 @@ function escapeHtml(t) {
 }
 
 // ── Helpers ────────────────────────────────────────────
+// ── Sidebar mobile (hamburguesa) ───────────────────────
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar.classList.contains('open')) { closeSidebar(); } else { openSidebar(); }
+}
+
+function openSidebar() {
+  document.querySelector('.sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 function autoGrow(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px'; }
 
