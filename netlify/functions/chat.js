@@ -1,4 +1,4 @@
-// ATEN Responde — Netlify Function v2 con fetch a aten.org.ar
+// ATEN Responde — Netlify Function v3 con RSS de aten.org.ar
 const GROQ_MODELS = [
   'meta-llama/llama-4-maverick-17b-128e-instruct',
   'llama-3.3-70b-versatile',
@@ -15,58 +15,70 @@ function limpiarRespuesta(texto) {
     .replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
-// Extraer texto limpio de HTML
-function extraerTexto(html) {
+function stripHTML(html) {
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-    .slice(0, 3000);
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#8230;/g, '...')
+    .replace(/\s{2,}/g, ' ').trim();
 }
 
-// Buscar en aten.org.ar
-async function buscarEnATEN(pregunta) {
-  const urls = [
-    'https://aten.org.ar/',
-    'https://aten.org.ar/noticias/',
-    'https://aten.org.ar/comunicados/',
-    'https://aten.org.ar/estatuto/',
+// Parsear RSS manualmente (sin librerías)
+function parseRSS(xml) {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null && items.length < 8) {
+    const block = match[1];
+    const get = (tag) => {
+      const m = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(block);
+      return m ? stripHTML(m[1]) : '';
+    };
+    const title = get('title');
+    const pubDate = get('pubDate');
+    const description = get('description').slice(0, 200);
+    const link = get('link');
+    if (title) items.push({ title, pubDate, description, link });
+  }
+  return items;
+}
+
+// Obtener noticias desde RSS de aten.org.ar
+async function obtenerNoticiasATEN() {
+  const feeds = [
+    'https://aten.org.ar/feed/',
+    'https://aten.org.ar/feed/rss/',
+    'https://aten.org.ar/?feed=rss2'
   ];
-
-  const q = pregunta.toLowerCase();
-  const esPreguntaDeNovedad = /noticia|comunicado|paro|huelga|asamblea|acuerdo|salarial|aumento|marcha|moviliz|convocator|reciente|último|hoy|semana/.test(q);
-  const esPreguntaEstatuto = /estatuto|articulo|ley 1124|licencia|puntaje|junta|antigüedad|titular|interino|suplente/.test(q);
-
-  const urlsAConsultar = esPreguntaEstatuto
-    ? ['https://aten.org.ar/', 'https://aten.org.ar/estatuto/']
-    : esPreguntaDeNovedad
-    ? ['https://aten.org.ar/', 'https://aten.org.ar/noticias/', 'https://aten.org.ar/comunicados/']
-    : ['https://aten.org.ar/'];
-
-  let contexto = '';
-  for (const url of urlsAConsultar) {
+  
+  for (const url of feeds) {
     try {
       const r = await fetch(url, {
-        headers: { 'User-Agent': 'ATEN-Responde-Bot/1.0' },
-        signal: AbortSignal.timeout(5000)
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; ATENResponde/1.0; +https://aten-tep-responde.netlify.app)',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+        },
+        signal: AbortSignal.timeout(6000)
       });
       if (!r.ok) continue;
-      const html = await r.text();
-      const texto = extraerTexto(html);
-      if (texto.length > 100) {
-        contexto += `\n[Fuente: ${url}]\n${texto.slice(0, 1200)}\n`;
-        if (contexto.length > 2500) break;
+      const xml = await r.text();
+      if (!xml.includes('<item>')) continue;
+      
+      const items = parseRSS(xml);
+      if (!items.length) continue;
+      
+      let contexto = `NOTICIAS RECIENTES DE ATEN NEUQUÉN (fuente: ${url}):\n`;
+      for (const item of items) {
+        contexto += `\n• ${item.title}`;
+        if (item.pubDate) contexto += ` (${item.pubDate.slice(0, 16)})`;
+        if (item.description) contexto += `\n  ${item.description}`;
       }
+      return contexto;
     } catch { continue; }
   }
-  return contexto;
+  return '';
 }
 
 async function callGroq(k, model, messages) {
@@ -117,8 +129,7 @@ async function saveKB(ghToken, ghRepo, kb) {
     headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message: 'Update KB desde panel admin ATEN Responde',
-      content,
-      sha: current.sha
+      content, sha: current.sha
     })
   });
   return upd.ok;
@@ -138,6 +149,11 @@ function buscarEnKB(kb, pregunta) {
     if (score > maxScore) { maxScore = score; mejor = item; }
   }
   return maxScore >= 2 ? mejor : null;
+}
+
+// ¿La pregunta es sobre noticias/novedades?
+function esConsultaDeNoticias(pregunta) {
+  return /noticia|comunicado|paro|huelga|asamblea|acuerdo|salarial|aumento|marcha|moviliz|convocator|reciente|último|hoy|semana|medida.*fuerza|fuerza.*medida|novedad|acontec|pasó|ocurrió/.test(pregunta.toLowerCase());
 }
 
 exports.handler = async (event) => {
@@ -181,10 +197,10 @@ exports.handler = async (event) => {
 
   const preguntaUsuario = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
 
-  // Buscar en paralelo: KB verificada + aten.org.ar
-  const [kb, contextoATEN] = await Promise.all([
+  // Buscar KB siempre, RSS solo si es consulta de noticias
+  const [kb, noticiasATEN] = await Promise.all([
     getKB(ghToken, ghRepo),
-    buscarEnATEN(preguntaUsuario)
+    esConsultaDeNoticias(preguntaUsuario) ? obtenerNoticiasATEN() : Promise.resolve('')
   ]);
 
   const verificada = buscarEnKB(kb, preguntaUsuario);
@@ -195,8 +211,8 @@ exports.handler = async (event) => {
     if (verificada) {
       extra += `\n\nRESPUESTA VERIFICADA POR ATEN (PRIORIDAD MÁXIMA):\nPregunta: "${verificada.pregunta}"\nRespuesta oficial: "${verificada.respuestaVerificada}"`;
     }
-    if (contextoATEN) {
-      extra += `\n\nCONTENIDO ACTUAL DE ATEN.ORG.AR (usá esta info para noticias y novedades recientes, citá la fuente):\n${contextoATEN}`;
+    if (noticiasATEN) {
+      extra += `\n\n${noticiasATEN}\n\nUsá estas noticias para responder preguntas sobre novedades recientes. Siempre mencioná que la fuente es aten.org.ar.`;
     }
     if (extra) messages[sysIdx].content += extra;
   }
