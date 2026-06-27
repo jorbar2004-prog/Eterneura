@@ -1,4 +1,4 @@
-// ATEN Responde — Netlify Function v3 con RSS de aten.org.ar
+// ATEN Responde — Netlify Function v4 con WordPress REST API
 const GROQ_MODELS = [
   'meta-llama/llama-4-maverick-17b-128e-instruct',
   'llama-3.3-70b-versatile',
@@ -16,8 +16,7 @@ function limpiarRespuesta(texto) {
 }
 
 function stripHTML(html) {
-  return html
-    .replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '')
+  return (html || '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -25,55 +24,35 @@ function stripHTML(html) {
     .replace(/\s{2,}/g, ' ').trim();
 }
 
-// Parsear RSS manualmente (sin librerías)
-function parseRSS(xml) {
-  const items = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-  let match;
-  while ((match = itemRegex.exec(xml)) !== null && items.length < 8) {
-    const block = match[1];
-    const get = (tag) => {
-      const m = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(block);
-      return m ? stripHTML(m[1]) : '';
-    };
-    const title = get('title');
-    const pubDate = get('pubDate');
-    const description = get('description').slice(0, 200);
-    const link = get('link');
-    if (title) items.push({ title, pubDate, description, link });
-  }
-  return items;
-}
-
-// Obtener noticias desde RSS de aten.org.ar
 async function obtenerNoticiasATEN() {
-  const feeds = [
-    'https://aten.org.ar/feed/',
-    'https://aten.org.ar/feed/rss/',
-    'https://aten.org.ar/?feed=rss2'
+  const endpoints = [
+    'https://aten.org.ar/wp-json/wp/v2/posts?per_page=8&_fields=title,date,excerpt,link',
+    'https://aten.org.ar/wp-json/wp/v2/posts?per_page=8',
   ];
-  
-  for (const url of feeds) {
+
+  for (const url of endpoints) {
     try {
       const r = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; ATENResponde/1.0; +https://aten-tep-responde.netlify.app)',
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+          'User-Agent': 'Mozilla/5.0 (compatible; ATENResponde/1.0)',
+          'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(7000)
       });
       if (!r.ok) continue;
-      const xml = await r.text();
-      if (!xml.includes('<item>')) continue;
-      
-      const items = parseRSS(xml);
-      if (!items.length) continue;
-      
-      let contexto = `NOTICIAS RECIENTES DE ATEN NEUQUÉN (fuente: ${url}):\n`;
-      for (const item of items) {
-        contexto += `\n• ${item.title}`;
-        if (item.pubDate) contexto += ` (${item.pubDate.slice(0, 16)})`;
-        if (item.description) contexto += `\n  ${item.description}`;
+      const posts = await r.json();
+      if (!Array.isArray(posts) || !posts.length) continue;
+
+      let contexto = `NOTICIAS RECIENTES DE ATEN NEUQUÉN (fuente: aten.org.ar):\n`;
+      for (const post of posts.slice(0, 8)) {
+        const titulo = stripHTML(post.title?.rendered || post.title || '');
+        const fecha = (post.date || '').slice(0, 10);
+        const resumen = stripHTML(post.excerpt?.rendered || '').slice(0, 180);
+        if (titulo) {
+          contexto += `\n• ${titulo}`;
+          if (fecha) contexto += ` (${fecha})`;
+          if (resumen) contexto += `\n  ${resumen}`;
+        }
       }
       return contexto;
     } catch { continue; }
@@ -112,8 +91,7 @@ async function getKB(ghToken, ghRepo) {
     });
     if (!r.ok) return [];
     const data = await r.json();
-    const content = Buffer.from(data.content, 'base64').toString('utf-8');
-    return JSON.parse(content);
+    return JSON.parse(Buffer.from(data.content, 'base64').toString('utf-8'));
   } catch { return []; }
 }
 
@@ -127,10 +105,7 @@ async function saveKB(ghToken, ghRepo, kb) {
   const upd = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/kb.json`, {
     method: 'PUT',
     headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: 'Update KB desde panel admin ATEN Responde',
-      content, sha: current.sha
-    })
+    body: JSON.stringify({ message: 'Update KB ATEN Responde', content, sha: current.sha })
   });
   return upd.ok;
 }
@@ -151,9 +126,8 @@ function buscarEnKB(kb, pregunta) {
   return maxScore >= 2 ? mejor : null;
 }
 
-// ¿La pregunta es sobre noticias/novedades?
 function esConsultaDeNoticias(pregunta) {
-  return /noticia|comunicado|paro|huelga|asamblea|acuerdo|salarial|aumento|marcha|moviliz|convocator|reciente|último|hoy|semana|medida.*fuerza|fuerza.*medida|novedad|acontec|pasó|ocurrió/.test(pregunta.toLowerCase());
+  return /noticia|comunicado|paro|huelga|asamblea|acuerdo|salarial|aumento|marcha|moviliz|convocator|reciente|último|hoy|semana|medida.*fuerza|fuerza.*medida|novedad|acontec|pasó|ocurrió|aten.*dice|aten.*inform|informa/.test(pregunta.toLowerCase());
 }
 
 exports.handler = async (event) => {
@@ -197,7 +171,6 @@ exports.handler = async (event) => {
 
   const preguntaUsuario = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
 
-  // Buscar KB siempre, RSS solo si es consulta de noticias
   const [kb, noticiasATEN] = await Promise.all([
     getKB(ghToken, ghRepo),
     esConsultaDeNoticias(preguntaUsuario) ? obtenerNoticiasATEN() : Promise.resolve('')
@@ -205,15 +178,10 @@ exports.handler = async (event) => {
 
   const verificada = buscarEnKB(kb, preguntaUsuario);
   const sysIdx = messages.findIndex(m => m.role === 'system');
-
   if (sysIdx >= 0) {
     let extra = '';
-    if (verificada) {
-      extra += `\n\nRESPUESTA VERIFICADA POR ATEN (PRIORIDAD MÁXIMA):\nPregunta: "${verificada.pregunta}"\nRespuesta oficial: "${verificada.respuestaVerificada}"`;
-    }
-    if (noticiasATEN) {
-      extra += `\n\n${noticiasATEN}\n\nUsá estas noticias para responder preguntas sobre novedades recientes. Siempre mencioná que la fuente es aten.org.ar.`;
-    }
+    if (verificada) extra += `\n\nRESPUESTA VERIFICADA POR ATEN (PRIORIDAD MÁXIMA):\nPregunta: "${verificada.pregunta}"\nRespuesta oficial: "${verificada.respuestaVerificada}"`;
+    if (noticiasATEN) extra += `\n\n${noticiasATEN}\n\nUsá estas noticias para responder. Citá siempre aten.org.ar como fuente.`;
     if (extra) messages[sysIdx].content += extra;
   }
 
