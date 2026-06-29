@@ -235,6 +235,59 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .wp-imgs { grid-template-columns: 1fr; }
   .weather-panel { padding: 18px 14px; }
 }
+/* ── Panel Historial de Sesiones ── */
+.history-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+  z-index: 180; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.history-overlay.open { opacity: 1; pointer-events: auto; }
+.history-panel {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  width: 560px; max-width: 96vw; max-height: 88vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.hp-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.hp-title { font-size: 15px; font-weight: 700; }
+.hp-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.hp-close:hover { color: var(--text); }
+.hp-list { overflow-y: auto; flex: 1; padding: 10px 12px; }
+.hp-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.hp-item {
+  border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 8px; transition: border-color .15s;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.hp-item:hover { border-color: var(--accent); }
+.hp-item-header { display: flex; align-items: center; justify-content: space-between; }
+.hp-item-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.hp-item-date { font-size: 11px; color: var(--text-muted); }
+.hp-item-meta { font-size: 11.5px; color: var(--text-muted); }
+.hp-item-preview { font-size: 12px; color: var(--text-mid); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-item-actions { display: flex; gap: 6px; margin-top: 4px; }
+.hp-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; color: var(--text-muted); cursor: pointer; font-family: var(--font); transition: all .15s; }
+.hp-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.hp-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.hp-actions-bar { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Voz ── */
+.voice-btn {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px;
+  width: 34px; height: 34px; cursor: pointer; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: all .15s; font-size: 17px;
+}
+.voice-btn:hover { color: var(--accent); border-color: var(--accent); }
+.voice-btn.listening { color: var(--red); border-color: var(--red); background: var(--red-dim); animation: pulse-border .8s ease-in-out infinite; }
+.voice-btn.speaking  { color: var(--teal); border-color: var(--teal); background: var(--teal-dim); }
+@keyframes pulse-border { 0%,100%{box-shadow:0 0 0 0 rgba(255,80,80,.4)} 50%{box-shadow:0 0 0 5px rgba(255,80,80,0)} }
+
+/* ── Botones header extra ── */
+.icon-btn.export { border-color: var(--teal); color: var(--teal); }
+.icon-btn.export:hover { background: var(--teal-dim); }
+.icon-btn.history-btn { border-color: var(--blue); color: var(--blue); }
+.icon-btn.history-btn:hover { background: rgba(59,158,255,.12); }
+
 .ghost-btn { width: 100%; background: none; border: 1px solid var(--border); border-radius: 7px; padding: 7px; cursor: pointer; font-size: 11.5px; color: var(--text-muted); font-family: var(--font); transition: all .15s; margin-top: 6px; }
 .ghost-btn:hover { border-color: var(--red); color: var(--red); }
 .ghost-btn.safe:hover { border-color: var(--accent); color: var(--accent); }
@@ -741,6 +794,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
           <button class="mode-btn" data-mode="evaluator" onclick="setMode('evaluator',this)"><span class="mode-icon">📊</span>Evaluador</button>
           <button class="mode-btn" data-mode="technical" onclick="setMode('technical',this)"><span class="mode-icon">📐</span>Técnico</button>
           <button class="mode-btn" data-mode="verifier" onclick="setMode('verifier',this)"><span class="mode-icon">🛡️</span>Verificador</button>
+          <button class="mode-btn" data-mode="free" onclick="setMode('free',this)" style="grid-column:1/-1"><span class="mode-icon">💬</span>Conversación Libre</button>
         </div>
       </div>
 
@@ -796,6 +850,8 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
         <div class="head-subject" id="head-subject">Definí un tema en el panel izquierdo</div>
       </div>
       <div class="head-actions">
+        <button class="icon-btn history-btn" onclick="openHistoryPanel()" title="Historial de sesiones">📋 Historial</button>
+        <button class="icon-btn export" onclick="exportChatPDF()" title="Exportar chat como PDF">⬇ PDF</button>
         <button class="icon-btn" onclick="clearChat()">🗑 Limpiar</button>
         <button class="icon-btn" onclick="openWeatherPanel()" title="Panel de pronóstico del tiempo">🌦 Clima</button>
         <button class="icon-btn teacher" onclick="openTeacherPanel()">⚙️ Docente</button>
@@ -835,10 +891,27 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
             <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
         </button>
+        <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Dictado por voz (Chrome)">🎤</button>
       </div>
     </div>
   </main>
 </div>
+
+<!-- ══ Panel Historial ══════════════════════════════════ -->
+<div class="history-overlay" id="history-overlay" onclick="if(event.target===this)closeHistoryPanel()">
+<div class="history-panel">
+  <div class="hp-header">
+    <div class="hp-title">📋 Historial de sesiones</div>
+    <button class="hp-close" onclick="closeHistoryPanel()">✕</button>
+  </div>
+  <div class="hp-list" id="hp-list"></div>
+  <div class="hp-actions-bar">
+    <button class="hp-btn" onclick="saveCurrentSession()">💾 Guardar sesión actual</button>
+    <button class="hp-btn danger" onclick="clearAllSessions()">🗑 Borrar todo</button>
+  </div>
+</div>
+</div>
+<!-- ══ /Panel Historial ══════════════════════════════════ -->
 
 <!-- ══ Panel Clima ══════════════════════════════════════ -->
 <div class="weather-overlay" id="weather-overlay" onclick="if(event.target===this)closeWeatherPanel()">
@@ -945,7 +1018,8 @@ const MODE_LABELS = {
   exercises: 'Modo Ejercicios',
   evaluator: 'Modo Evaluador',
   technical: 'Modo Análisis Técnico',
-  verifier:  'Modo Verificador de Contenido'
+  verifier:  'Modo Verificador de Contenido',
+  free:      'Conversación Libre'
 };
 
 const MODE_PROMPTS = {
@@ -986,7 +1060,9 @@ VEREDICTO: NO VERIFICABLE
 
 Luego desarrollás el análisis con secciones claras. Al final, SIEMPRE incluís una sección "Cómo verificar" con al menos 2 fuentes confiables apropiadas para el tema (Chequeado.com para Argentina, AFP Factual, Google Fact Check, Snopes, PubMed para temas médicos, CONICET para ciencia argentina, etc.).
 
-PRINCIPIO EDUCATIVO: el objetivo no es solo decir "esto es falso" sino enseñar al usuario a detectarlo por sí mismo la próxima vez. Explicá el razonamiento, no solo la conclusión.`
+PRINCIPIO EDUCATIVO: el objetivo no es solo decir "esto es falso" sino enseñar al usuario a detectarlo por sí mismo la próxima vez. Explicá el razonamiento, no solo la conclusión.`,
+  free:
+    'Estás en modo Conversación Libre. Respondés cualquier pregunta con honestidad, claridad y buen criterio: cultura general, ciencia, historia, tecnología, filosofía, noticias, preguntas personales, o simplemente charlar. No estás limitado al ámbito educativo. Usás español rioplatense (vos, ustedes), sos cálido, directo y genuinamente útil. Cuando el tema lo amerite, podés sugerir que profundizar en ello desde un modo pedagógico sería aún más productivo, pero sin forzarlo.'
 };
 
 // ── State ──────────────────────────────────────────────
@@ -1833,6 +1909,7 @@ async function sendMessage(override) {
       history.push({ role:'assistant', content: data.reply });
       if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
       updateCognitiveProfile(); // update mastery after successful exchange
+      if (typeof speakResponse === 'function') speakResponse(data.reply);
     }
   } catch(err) {
     typingEl.remove();
@@ -2220,7 +2297,274 @@ function copyExam() {
   navigator.clipboard.writeText(lastExamText).then(() => showToast('Examen copiado al portapapeles'));
 }
 
-// ══ Panel Clima ══════════════════════════════════════════
+// ══ HISTORIAL DE SESIONES (localStorage) ═════════════════
+const SESSIONS_KEY = 'ea_sessions';
+const MAX_SAVED_SESSIONS = 30;
+
+function loadSavedSessions() {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch(_) { return []; }
+}
+function saveSavedSessions(list) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(list)); }
+
+function saveCurrentSession() {
+  if (history.length < 2) { showToast('Conversá un poco antes de guardar'); return; }
+  const sessions = loadSavedSessions();
+  const subject  = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'Sin tema';
+  const preview  = history.find(m => m.role === 'user')?.content;
+  const previewText = typeof preview === 'string' ? preview : (Array.isArray(preview) ? preview.find(b=>b.type==='text')?.text : '') || '';
+
+  const session = {
+    id:        's_' + Date.now().toString(36),
+    date:      new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+    subject,
+    mode,
+    profileName: currentProfile?.name || 'Anónimo',
+    messages:  history.length,
+    preview:   previewText.slice(0, 120),
+    history:   history.slice(-MAX_HISTORY * 2)  // solo los últimos N turnos
+  };
+
+  sessions.unshift(session);
+  if (sessions.length > MAX_SAVED_SESSIONS) sessions.length = MAX_SAVED_SESSIONS;
+  saveSavedSessions(sessions);
+  showToast('✅ Sesión guardada');
+  renderHistoryList();
+}
+
+function openHistoryPanel() {
+  renderHistoryList();
+  document.getElementById('history-overlay').classList.add('open');
+}
+function closeHistoryPanel() {
+  document.getElementById('history-overlay').classList.remove('open');
+}
+
+function renderHistoryList() {
+  const sessions = loadSavedSessions();
+  const list = document.getElementById('hp-list');
+  if (!sessions.length) {
+    list.innerHTML = '<div class="hp-empty">No hay sesiones guardadas.<br>Guardá una sesión desde el botón de abajo o desde el chat.</div>';
+    return;
+  }
+  list.innerHTML = sessions.map(s => `
+    <div class="hp-item">
+      <div class="hp-item-header">
+        <div class="hp-item-title">${escapeHtml(s.subject)}</div>
+        <div class="hp-item-date">${escapeHtml(s.date)}</div>
+      </div>
+      <div class="hp-item-meta">👤 ${escapeHtml(s.profileName)} · ${MODE_LABELS[s.mode]||s.mode} · ${s.messages} mensajes</div>
+      <div class="hp-item-preview">${escapeHtml(s.preview)}</div>
+      <div class="hp-item-actions">
+        <button class="hp-btn" onclick="restoreSession('${s.id}')">↩ Retomar</button>
+        <button class="hp-btn" onclick="exportSessionPDF('${s.id}')">⬇ PDF</button>
+        <button class="hp-btn danger" onclick="deleteSession('${s.id}')">Borrar</button>
+      </div>
+    </div>`).join('');
+}
+
+function restoreSession(id) {
+  const sessions = loadSavedSessions();
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm(`¿Retomás la sesión "${s.subject}" del ${s.date}? El chat actual se perderá si no lo guardaste.`)) return;
+
+  history = s.history || [];
+  document.getElementById('subject-input').value = s.subject;
+  saveSettings();
+
+  // Render messages
+  const msgsEl = document.getElementById('messages');
+  msgsEl.innerHTML = '';
+  history.forEach(m => {
+    const text = typeof m.content === 'string' ? m.content : (m.content.find?.(b=>b.type==='text')?.text || '');
+    if (text) addBubble(m.role === 'user' ? 'user' : 'ai', text);
+  });
+
+  closeHistoryPanel();
+  showToast(`↩ Sesión "${s.subject}" restaurada`);
+}
+
+function deleteSession(id) {
+  let sessions = loadSavedSessions();
+  sessions = sessions.filter(s => s.id !== id);
+  saveSavedSessions(sessions);
+  renderHistoryList();
+  showToast('Sesión eliminada');
+}
+
+function clearAllSessions() {
+  if (!confirm('¿Borrás todas las sesiones guardadas? Esta acción no se puede deshacer.')) return;
+  saveSavedSessions([]);
+  renderHistoryList();
+  showToast('Historial borrado');
+}
+
+// Auto-guardar al limpiar el chat si hay conversación
+const _origClearChat = typeof clearChat === 'function' ? clearChat : null;
+
+// ══ EXPORTAR CHAT como PDF ════════════════════════════════
+// Usa la API de impresión del navegador con una hoja de estilos dedicada.
+// No requiere librerías externas.
+
+function buildPrintHTML(historyData, subject, profileName, dateStr) {
+  const aiName = escapeHtml(teacherConfig.aiName || 'Eterneura');
+  const rows = historyData.map(m => {
+    const isUser = m.role === 'user';
+    const text = typeof m.content === 'string' ? m.content
+      : (Array.isArray(m.content) ? m.content.filter(b=>b.type==='text').map(b=>b.text).join(' ') : '');
+    const escapedText = escapeHtml(text).replace(/\n/g, '<br>');
+    return `<div class="msg ${isUser ? 'user' : 'ai'}">
+      <div class="msg-who">${isUser ? escapeHtml(profileName || 'Alumno') : aiName}</div>
+      <div class="msg-body">${escapedText}</div>
+    </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>${aiName} · ${escapeHtml(subject)}</title>
+  <style>
+    body { font-family: Georgia, serif; font-size: 11pt; color: #111; margin: 0; padding: 0; }
+    .cover { padding: 40px 50px 30px; border-bottom: 2px solid #7c6af7; }
+    .cover-title { font-size: 22pt; font-weight: bold; color: #7c6af7; }
+    .cover-meta { font-size: 10pt; color: #666; margin-top: 8px; }
+    .chat { padding: 24px 50px; }
+    .msg { margin-bottom: 18px; page-break-inside: avoid; }
+    .msg-who { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .msg.user .msg-who { color: #7c6af7; }
+    .msg.ai   .msg-who { color: #2dd4bf; }
+    .msg-body { background: #f8f8fb; border-left: 3px solid #e0dff7; padding: 9px 14px; border-radius: 4px; font-size: 10.5pt; line-height: 1.65; }
+    .msg.ai .msg-body { background: #f0fdfb; border-left-color: #2dd4bf; }
+    .footer { font-size: 9pt; color: #aaa; text-align: center; padding: 16px; border-top: 1px solid #eee; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style></head><body>
+  <div class="cover">
+    <div class="cover-title">${aiName}</div>
+    <div class="cover-meta">
+      Tema: <strong>${escapeHtml(subject)}</strong> &nbsp;·&nbsp;
+      Alumno: <strong>${escapeHtml(profileName || 'Anónimo')}</strong> &nbsp;·&nbsp;
+      Fecha: <strong>${escapeHtml(dateStr)}</strong>
+    </div>
+  </div>
+  <div class="chat">${rows}</div>
+  <div class="footer">Generado por ${aiName} · IA Educativa</div>
+  </body></html>`;
+}
+
+function exportChatPDF() {
+  if (history.length < 2) { showToast('No hay conversación para exportar'); return; }
+  const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'Conversación';
+  const profileName = currentProfile?.name || 'Anónimo';
+  const dateStr = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const html = buildPrintHTML(history, subject, profileName, dateStr);
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
+  showToast('📄 Abriendo diálogo de impresión/PDF…');
+}
+
+function exportSessionPDF(id) {
+  const s = loadSavedSessions().find(x => x.id === id);
+  if (!s) return;
+  const html = buildPrintHTML(s.history || [], s.subject, s.profileName, s.date);
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
+}
+
+// ══ MODO VOZ (Web Speech API) ═════════════════════════════
+let recognition  = null;
+let synthesis    = window.speechSynthesis;
+let voiceActive  = false;
+let ttsEnabled   = true;  // TTS de respuestas IA — toggle desde el botón mantenido presionado
+
+function initVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    document.getElementById('voice-btn').title = 'Voz no disponible (usá Chrome)';
+    document.getElementById('voice-btn').style.opacity = '.35';
+    document.getElementById('voice-btn').style.cursor = 'not-allowed';
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-AR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = e => {
+    const transcript = e.results[0][0].transcript.trim();
+    const input = document.getElementById('user-input');
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+    autoGrow(input);
+    stopListening();
+    // Auto-send si termina con signo de puntuación fuerte o tiene más de 3 palabras
+    if (/[.!?]$/.test(transcript) || transcript.split(' ').length >= 3) {
+      setTimeout(() => sendMessage(), 300);
+    }
+  };
+  recognition.onerror = e => {
+    stopListening();
+    if (e.error !== 'no-speech') showToast('Error de micrófono: ' + e.error);
+  };
+  recognition.onend = () => stopListening();
+}
+
+function toggleVoice() {
+  if (!recognition) { showToast('Voz no disponible en este navegador. Usá Chrome.'); return; }
+  if (voiceActive) { stopListening(); }
+  else { startListening(); }
+}
+
+function startListening() {
+  if (synthesis.speaking) synthesis.cancel();
+  voiceActive = true;
+  const btn = document.getElementById('voice-btn');
+  btn.classList.add('listening');
+  btn.title = 'Escuchando… (clic para detener)';
+  btn.textContent = '🔴';
+  recognition.start();
+}
+
+function stopListening() {
+  voiceActive = false;
+  try { recognition?.stop(); } catch(_) {}
+  const btn = document.getElementById('voice-btn');
+  btn.classList.remove('listening');
+  btn.title = 'Dictado por voz (Chrome)';
+  btn.textContent = '🎤';
+}
+
+// TTS: leer la respuesta de la IA en voz alta
+function speakResponse(text) {
+  if (!ttsEnabled || !synthesis) return;
+  synthesis.cancel();
+  // Limpiar markdown para TTS
+  const clean = text
+    .replace(/```[\s\S]*?```/g, 'bloque de código omitido.')
+    .replace(/`[^`]+`/g, '')
+    .replace(/#{1,3} /g, '')
+    .replace(/\*\*/g, '').replace(/\*/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .slice(0, 1200);  // limitar largo del audio
+
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.lang  = 'es-AR';
+  utterance.rate  = 1.05;
+  utterance.pitch = 1.0;
+
+  const btn = document.getElementById('voice-btn');
+  utterance.onstart = () => { btn.classList.add('speaking'); btn.textContent = '🔊'; };
+  utterance.onend   = () => { btn.classList.remove('speaking'); btn.textContent = '🎤'; };
+  utterance.onerror = () => { btn.classList.remove('speaking'); btn.textContent = '🎤'; };
+  synthesis.speak(utterance);
+}
+
+// Inicializar voz al cargar
+document.addEventListener('DOMContentLoaded', () => { initVoice(); });
+
+// ══ /Features v4.7 ═══════════════════════════════════════
+
+</script>
 // Usa Open-Meteo (sin key, CORS libre) para datos numéricos,
 // y Geocoding API de Open-Meteo para convertir nombre → lat/lon.
 // Las imágenes satelitales son URLs públicas del SMN y GOES-16.
