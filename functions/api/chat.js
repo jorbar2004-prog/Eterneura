@@ -1,83 +1,137 @@
-// Cloudflare Pages Function — responde en /api/image
-// Genera imágenes REALISTAS (no diagramas esquemáticos) usando Cloudflare Workers AI.
+// Cloudflare Pages Function — responde en /api/chat
 //
-// Requiere un binding de Workers AI en este proyecto de Cloudflare Pages:
-//   Settings → Functions → AI bindings → Add binding → variable name: AI
-// No requiere ninguna API key nueva: usa la misma cuenta de Cloudflare donde
-// ya está alojado el sitio. Cuota gratis: 10.000 neurons/día (~230 imágenes
-// con FLUX.1 Schnell).
-//
-// Esta función solo existe en la versión de Cloudflare. En Netlify no hay
-// equivalente gratuito a Workers AI, así que ese deploy no tendrá esta
-// capacidad (el frontend lo detecta y avisa con un mensaje claro).
+// ── Motores de IA, en orden de preferencia ──
+// Para texto: 1) Groq (gratis, ~14.400 msj/día)  2) OpenRouter (respaldo)
+// Para imágenes (visión): OpenRouter, con modelos gratuitos de visión.
 
-const IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
-
-// Filtro de seguridad básico a nivel de prompt: contenido educativo solamente.
-// No reemplaza los filtros propios del modelo, es una capa adicional.
-const BLOCKED_TERMS = [
-  'nude', 'naked', 'nsfw', 'sex', 'porn', 'gore', 'corpse', 'dead body',
-  'desnud', 'sexual', 'violencia explícita', 'sangre explícita'
+// Modelos Groq: nombres exactos según https://console.groq.com/docs/models
+// IMPORTANTE: Groq usa IDs propios, NO los prefijos openai/ o qwen/ de OpenRouter.
+const GROQ_MODELS = [
+  'llama-3.3-70b-versatile',   // modelo principal — máxima calidad
+  'llama-3.1-70b-versatile',   // alternativa estable
+  'gemma2-9b-it'               // respaldo liviano — muy confiable
 ];
 
-function isPromptSafe(prompt) {
-  const lower = prompt.toLowerCase();
-  return !BLOCKED_TERMS.some(term => lower.includes(term));
+const OPENROUTER_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'meta-llama/llama-4-maverick:free',
+  'deepseek/deepseek-chat:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'mistralai/mistral-7b-instruct:free'
+];
+
+const OPENROUTER_VISION_MODELS = [
+  'qwen/qwen2.5-vl-72b-instruct:free',
+  'qwen/qwen2.5-vl-32b-instruct:free',
+  'meta-llama/llama-3.2-11b-vision-instruct:free',
+  'google/gemma-3-27b-it:free'
+];
+
+async function callGroq(apiKey, model, messages) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, max_tokens: 2200, temperature: 0.7 })
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+async function callOpenRouter(apiKey, model, messages) {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://eterneura.pages.dev',
+      'X-Title': 'Eterneura'
+    },
+    body: JSON.stringify({ model, messages, max_tokens: 2200, temperature: 0.7 })
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
 }
 
 export async function onRequestPost(context) {
-  const { request, env } = context;
-  const cors = { 'Access-Control-Allow-Origin': '*' };
+  const cors = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+  const jsonRes = (status, obj) =>
+    new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
-  if (!env.AI) {
-    return new Response(
-      JSON.stringify({
-        error: 'La generación de imágenes realistas no está habilitada en este sitio. El docente debe activar el binding "AI" de Workers AI en Cloudflare (Settings → Functions → AI bindings).'
-      }),
-      { status: 501, headers: { 'Content-Type': 'application/json', ...cors } }
-    );
-  }
+  const groqKey = context.env.GROQ_API_KEY;
+  const orKey   = context.env.OPENROUTER_API_KEY;
+
+  if (!groqKey && !orKey)
+    return jsonRes(500, { error: 'No hay ninguna API key configurada (GROQ_API_KEY ni OPENROUTER_API_KEY).' });
 
   let body;
-  try { body = await request.json(); }
-  catch { return new Response(JSON.stringify({ error: 'JSON inválido' }), { status: 400, headers: cors }); }
+  try { body = await context.request.json(); }
+  catch { return jsonRes(400, { error: 'JSON inválido' }); }
 
-  const prompt = (body.prompt || '').trim();
-  if (!prompt) {
-    return new Response(JSON.stringify({ error: 'Falta el prompt de la imagen' }), { status: 400, headers: cors });
-  }
-  if (prompt.length > 600) {
-    return new Response(JSON.stringify({ error: 'Prompt demasiado largo' }), { status: 400, headers: cors });
-  }
-  if (!isPromptSafe(prompt)) {
-    return new Response(JSON.stringify({ error: 'Este pedido de imagen no cumple las pautas de contenido educativo del sitio.' }), { status: 400, headers: cors });
+  const { messages, hasImages } = body;
+  if (!messages?.length) return jsonRes(400, { error: 'Falta messages' });
+
+  if (hasImages && !orKey)
+    return jsonRes(500, { error: 'El análisis de imágenes requiere una OPENROUTER_API_KEY configurada.' });
+
+  let lastError = null;
+
+  if (hasImages) {
+    for (const model of OPENROUTER_VISION_MODELS) {
+      let result;
+      try { result = await callOpenRouter(orKey, model, messages); }
+      catch (err) { lastError = 'OpenRouter (visión): ' + err.message; continue; }
+      if (result.ok) {
+        const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
+        return jsonRes(200, { reply, modelUsed: `OpenRouter · ${model}` });
+      }
+      lastError = result.data.error?.message || `OpenRouter ${result.status} (${model})`;
+      if (result.status !== 429 && result.status !== 404) break;
+    }
+    return jsonRes(429, { error: 'Los modelos de visión están saturados. Intentá de nuevo en unos minutos. (' + lastError + ')' });
   }
 
-  try {
-    const result = await env.AI.run(IMAGE_MODEL, { prompt, seed: Math.floor(Math.random() * 100000) });
-
-    // FLUX.1 Schnell en Workers AI devuelve { image: "<base64>" } (JPEG/PNG base64, sin prefijo data:)
-    const base64 = result.image;
-    if (!base64) throw new Error('El modelo no devolvió una imagen');
-
-    return new Response(
-      JSON.stringify({ image: `data:image/jpeg;base64,${base64}` }),
-      { headers: { 'Content-Type': 'application/json', ...cors } }
-    );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: 'No se pudo generar la imagen: ' + err.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json', ...cors } }
-    );
+  if (groqKey) {
+    for (const model of GROQ_MODELS) {
+      let result;
+      try { result = await callGroq(groqKey, model, messages); }
+      catch (err) { lastError = 'Groq: ' + err.message; continue; }
+      if (result.ok) {
+        const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
+        return jsonRes(200, { reply, modelUsed: `Groq · ${model}` });
+      }
+      lastError = result.data.error?.message || `Groq ${result.status} (${model})`;
+      if (result.status !== 429 && result.status !== 404) break;
+    }
   }
+
+  if (orKey) {
+    for (const model of OPENROUTER_MODELS) {
+      let result;
+      try { result = await callOpenRouter(orKey, model, messages); }
+      catch (err) { lastError = 'OpenRouter: ' + err.message; continue; }
+      if (result.ok) {
+        const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
+        return jsonRes(200, { reply, modelUsed: `OpenRouter · ${model}` });
+      }
+      lastError = result.data.error?.message || `OpenRouter ${result.status} (${model})`;
+      if (result.status !== 429 && result.status !== 404) break;
+    }
+  }
+
+  return jsonRes(429, { error: 'Todos los motores gratuitos están saturados. Intentá en unos minutos. (' + lastError + ')' });
 }
 
 export async function onRequestOptions() {
-  return new Response(null, {
+  return new Response('', {
+    status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
     }
   });
 }
