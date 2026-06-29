@@ -157,7 +157,84 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
 .empty-profile { font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0; line-height: 1.5; }
 
-/* Ghost btn */
+/* ── Panel Clima ── */
+.weather-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+  z-index: 180; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.weather-overlay.open { opacity: 1; pointer-events: auto; }
+.weather-panel {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  width: 700px; max-width: 96vw; max-height: 90vh; overflow-y: auto;
+  padding: 26px 28px; display: flex; flex-direction: column; gap: 18px;
+}
+.wp-header { display: flex; align-items: center; justify-content: space-between; }
+.wp-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.wp-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.wp-close:hover { color: var(--text); }
+.wp-location-row { display: flex; gap: 8px; align-items: center; }
+.wp-location-row input { flex: 1; }
+.wp-btn { background: var(--accent); border: none; border-radius: 8px; padding: 8px 16px; color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: opacity .15s; }
+.wp-btn:hover { opacity: .85; }
+.wp-btn:disabled { opacity: .5; cursor: default; }
+.wp-btn.secondary { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-mid); font-weight: 500; }
+.wp-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+.wp-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
+.wp-tab { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 5px 12px; font-size: 12px; color: var(--text-muted); cursor: pointer; font-family: var(--font); transition: all .15s; }
+.wp-tab:hover { color: var(--text); border-color: var(--text-muted); }
+.wp-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.wp-content { min-height: 200px; }
+.wp-section { display: none; }
+.wp-section.active { display: block; }
+
+/* Current weather card */
+.wp-now { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wp-now-main { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.wp-temp { font-size: 48px; font-weight: 700; color: var(--text); line-height: 1; }
+.wp-temp span { font-size: 22px; color: var(--text-muted); font-weight: 400; }
+.wp-desc { font-size: 14px; color: var(--text-mid); margin-top: 4px; }
+.wp-loc-label { font-size: 11px; color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; }
+.wp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wp-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; }
+.wp-stat-key { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
+.wp-stat-val { font-size: 16px; font-weight: 700; color: var(--teal); margin-top: 2px; }
+.wp-stat-val.amber { color: var(--amber); }
+.wp-stat-val.blue { color: var(--blue); }
+.wp-stat-val.green { color: var(--green); }
+
+/* Forecast */
+.wp-forecast { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+.wp-day { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 8px; text-align: center; }
+.wp-day-name { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.wp-day-icon { font-size: 22px; margin: 6px 0; }
+.wp-day-max { font-size: 15px; font-weight: 700; color: var(--amber); }
+.wp-day-min { font-size: 12px; color: var(--blue); }
+.wp-day-rain { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* Satellite / Radar images */
+.wp-imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wp-img-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.wp-img-label { font-size: 11px; color: var(--text-muted); padding: 8px 10px 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+.wp-img-card img { width: 100%; display: block; border-radius: 0 0 10px 10px; }
+.wp-img-card .wp-img-err { padding: 20px; font-size: 12px; color: var(--text-muted); text-align: center; }
+.wp-img-ts { font-size: 10px; color: var(--text-muted); padding: 0 10px 6px; }
+.wp-img-refresh { font-size: 10px; color: var(--accent); background: none; border: none; cursor: pointer; font-family: var(--font); padding: 0 10px 8px; text-decoration: underline; display: block; }
+.wp-img-refresh:hover { color: var(--teal); }
+
+/* AI analysis */
+.wp-ai-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.6; color: var(--text-mid); }
+.wp-ai-box.loading { color: var(--text-muted); font-style: italic; }
+.wp-ai-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wp-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.wp-error { color: var(--red); font-size: 12px; background: var(--red-dim); border: 1px solid var(--red); border-radius: 8px; padding: 10px 12px; display: none; }
+.wp-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 600px) {
+  .wp-now { grid-template-columns: 1fr; }
+  .wp-imgs { grid-template-columns: 1fr; }
+  .weather-panel { padding: 18px 14px; }
+}
 .ghost-btn { width: 100%; background: none; border: 1px solid var(--border); border-radius: 7px; padding: 7px; cursor: pointer; font-size: 11.5px; color: var(--text-muted); font-family: var(--font); transition: all .15s; margin-top: 6px; }
 .ghost-btn:hover { border-color: var(--red); color: var(--red); }
 .ghost-btn.safe:hover { border-color: var(--accent); color: var(--accent); }
@@ -494,7 +571,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama3-70b → mixtral-8x7b), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (Qwen-VL, Llama Vision). No requiere configuración adicional.</div>
+      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama-3.1-70b → gemma2-9b-it), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (Qwen-VL, Llama Vision). No requiere configuración adicional.</div>
     </div>
 
     <div class="modal-section">
@@ -720,6 +797,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       </div>
       <div class="head-actions">
         <button class="icon-btn" onclick="clearChat()">🗑 Limpiar</button>
+        <button class="icon-btn" onclick="openWeatherPanel()" title="Panel de pronóstico del tiempo">🌦 Clima</button>
         <button class="icon-btn teacher" onclick="openTeacherPanel()">⚙️ Docente</button>
       </div>
     </div>
@@ -762,9 +840,93 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   </main>
 </div>
 
+<!-- ══ Panel Clima ══════════════════════════════════════ -->
+<div class="weather-overlay" id="weather-overlay" onclick="if(event.target===this)closeWeatherPanel()">
+<div class="weather-panel">
+  <div class="wp-header">
+    <div class="wp-title">🌦 Pronóstico del tiempo</div>
+    <button class="wp-close" onclick="closeWeatherPanel()">✕</button>
+  </div>
+
+  <div class="wp-location-row">
+    <input class="field-input" type="text" id="wp-loc-input" placeholder="Ciudad (ej: Buenos Aires, Córdoba, Mendoza…)" onkeydown="if(event.key==='Enter')fetchWeather()"/>
+    <button class="wp-btn" id="wp-fetch-btn" onclick="fetchWeather()">Buscar</button>
+    <button class="wp-btn secondary" onclick="fetchWeatherGeo()" title="Usar mi ubicación">📍</button>
+  </div>
+  <div class="wp-error" id="wp-error"></div>
+
+  <div class="wp-tabs" id="wp-tabs" style="display:none">
+    <button class="wp-tab active" data-tab="wp-now-sec" onclick="switchWpTab(this)">🌡 Ahora</button>
+    <button class="wp-tab" data-tab="wp-forecast-sec" onclick="switchWpTab(this)">📅 7 días</button>
+    <button class="wp-tab" data-tab="wp-satellite-sec" onclick="switchWpTab(this)">🛰 Satélite & Radar</button>
+    <button class="wp-tab" data-tab="wp-ai-sec" onclick="switchWpTab(this)">🤖 Análisis IA</button>
+  </div>
+
+  <div class="wp-content" id="wp-content" style="display:none">
+
+    <!-- Ahora -->
+    <div class="wp-section active" id="wp-now-sec">
+      <div class="wp-now">
+        <div class="wp-now-main">
+          <div class="wp-loc-label" id="wp-loc-label">—</div>
+          <div class="wp-temp" id="wp-temp">—<span>°C</span></div>
+          <div class="wp-desc" id="wp-desc">—</div>
+        </div>
+        <div class="wp-grid">
+          <div class="wp-stat"><div class="wp-stat-key">Sensación</div><div class="wp-stat-val amber" id="wp-feel">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Humedad</div><div class="wp-stat-val blue" id="wp-hum">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Viento</div><div class="wp-stat-val green" id="wp-wind">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Lluvia 1h</div><div class="wp-stat-val blue" id="wp-rain1h">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Presión</div><div class="wp-stat-val" id="wp-press">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Índice UV</div><div class="wp-stat-val amber" id="wp-uv">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 días -->
+    <div class="wp-section" id="wp-forecast-sec">
+      <div class="wp-forecast" id="wp-forecast-grid"></div>
+    </div>
+
+    <!-- Satélite & Radar -->
+    <div class="wp-section" id="wp-satellite-sec">
+      <div class="wp-hint" style="margin-bottom:12px">
+        Imágenes actualizadas del <strong>Servicio Meteorológico Nacional (SMN)</strong> y GOES-16. Se refrescan cada vez que abrís esta pestaña.
+      </div>
+      <div class="wp-imgs" id="wp-sat-grid"></div>
+    </div>
+
+    <!-- Análisis IA -->
+    <div class="wp-section" id="wp-ai-sec">
+      <div class="wp-hint" style="margin-bottom:12px">
+        La IA analiza los datos meteorológicos actuales y da un pronóstico en lenguaje natural. También puede analizar las imágenes de satélite y radar vía visión.
+      </div>
+      <div class="wp-ai-actions" style="margin-bottom:12px">
+        <button class="wp-btn" onclick="analyzeWeatherText()">🤖 Analizar condiciones actuales</button>
+        <button class="wp-btn secondary" onclick="analyzeWeatherImages()">🛰 Analizar satélite + radar</button>
+      </div>
+      <div class="wp-ai-box" id="wp-ai-box">Buscá una ciudad y presioná un botón para que la IA analice las condiciones meteorológicas.</div>
+    </div>
+
+  </div>
+</div>
+</div>
+<!-- ══ /Panel Clima ══════════════════════════════════════ -->
+
 <script>
 if (typeof pdfjsLib !== 'undefined')
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Utilidades de contraseña (SHA-256 vía Web Crypto) ──
+async function hashPwd(plain) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function checkPwdMatch(plain, stored) {
+  // Soporta contraseñas viejas en texto plano (migración transparente)
+  if (!stored.startsWith('sha256:')) return plain === stored;
+  return ('sha256:' + await hashPwd(plain)) === stored;
+}
 
 // ── Constants ──────────────────────────────────────────
 const MAX_HISTORY     = 14;
@@ -1016,8 +1178,10 @@ function openTeacherPanel() {
   setTimeout(() => document.getElementById('pwd-input').focus(), 100);
 }
 
-function checkPwd() {
-  if (document.getElementById('pwd-input').value === teacherConfig.password) {
+async function checkPwd() {
+  const val = document.getElementById('pwd-input').value;
+  const ok  = await checkPwdMatch(val, teacherConfig.password);
+  if (ok) {
     closePwdGate();
     openTeacherModal();
   } else {
@@ -1078,11 +1242,11 @@ function renderStudentsList() {
   }).join('');
 }
 
-function changePwd() {
+async function changePwd() {
   const p = document.getElementById('cfg-pwd').value.trim();
   if (!p) { showToast('Escribí la nueva contraseña'); return; }
   if (p.length < 4) { showToast('Mínimo 4 caracteres'); return; }
-  teacherConfig.password = p;
+  teacherConfig.password = 'sha256:' + await hashPwd(p);
   document.getElementById('cfg-pwd').value = '';
   showToast('🔑 Contraseña cambiada — guardá la configuración');
 }
@@ -1636,8 +1800,12 @@ async function sendMessage(override) {
     { role:'user', content: userContent } // current user message (text or multimodal)
   ];
 
-  // Now push to history for next turn
-  history.push({ role:'user', content: userContent });
+  // Push to history — para mensajes con imágenes guardamos solo el texto
+  // (los base64 de imagen no deben acumularse en el historial: inflan el payload)
+  const userContentForHistory = imagesForThisMsg.length
+    ? [{ type: 'text', text: (text || 'Imagen adjunta') + ` [${imagesForThisMsg.length} imagen(es) adjunta(s)]` }]
+    : userContent;
+  history.push({ role:'user', content: userContentForHistory });
   if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
 
   clearPendingImages();
@@ -1846,7 +2014,8 @@ function renderMarkdownBody(text) {
   h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   h = h.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
   h = h.replace(/^[-*] (.+)$/gm, '<li>$1</li>').replace(/(<li>[\s\S]*?<\/li>\n?)+/g, s => `<ul>${s}</ul>`);
-  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/^\d+\. (.+)$/gm, '<li data-ol>$1</li>');
+  h = h.replace(/(<li data-ol>[\s\S]*?<\/li>\n?)+/g, s => `<ol>${s.replace(/ data-ol/g,'')}</ol>`);
   h = h.split(/\n\n+/).map(b => { b = b.trim(); if (!b) return ''; if (/^<(h[23]|ul|ol|pre|blockquote)/.test(b)) return b; return `<p>${b.replace(/\n/g,'<br>')}</p>`; }).join('');
 
   // Reinsertar los SVGs ya sanitizados (fuera del escapeHtml, como markup real)
@@ -1878,9 +2047,12 @@ function sanitizeSvg(raw) {
   svg = svg.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
   svg = svg.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
   svg = svg.replace(/(xlink:href|href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
-  // Eliminar referencias a recursos externos (http/https) en href — solo se permiten
-  // referencias internas (#id) o data: URIs, para evitar carga de contenido ajeno.
+  // Eliminar referencias a recursos externos (http/https) en href
   svg = svg.replace(/(xlink:href|href)\s*=\s*["']https?:[^"']*["']/gi, '');
+  // Eliminar data: URIs en href (pueden contener HTML/JS embebido)
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']data:[^"']*["']/gi, '');
+  // Eliminar atributo filter con referencias externas
+  svg = svg.replace(/filter\s*=\s*["']url\([^)]*\)["']/gi, '');
   return svg;
 }
 
@@ -2047,6 +2219,323 @@ function copyExam() {
   if (!lastExamText) return;
   navigator.clipboard.writeText(lastExamText).then(() => showToast('Examen copiado al portapapeles'));
 }
+
+// ══ Panel Clima ══════════════════════════════════════════
+// Usa Open-Meteo (sin key, CORS libre) para datos numéricos,
+// y Geocoding API de Open-Meteo para convertir nombre → lat/lon.
+// Las imágenes satelitales son URLs públicas del SMN y GOES-16.
+
+let wpWeatherData = null;  // datos actuales cacheados para el análisis IA
+let wpLocationName = '';
+let wpLat = null, wpLon = null;
+
+const WP_WEATHER_CODES = {
+  0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',
+  45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna moderada',55:'Llovizna intensa',
+  61:'Lluvia ligera',63:'Lluvia moderada',65:'Lluvia intensa',
+  71:'Nevada ligera',73:'Nevada moderada',75:'Nevada intensa',
+  80:'Chaparrones ligeros',81:'Chaparrones moderados',82:'Chaparrones intensos',
+  95:'Tormenta',96:'Tormenta con granizo ligero',99:'Tormenta con granizo intenso'
+};
+
+const WP_WEATHER_ICON = {
+  0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',
+  51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',
+  71:'🌨',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'⛈',
+  95:'⛈',96:'⛈',99:'⛈'
+};
+
+const WP_SAT_SOURCES = [
+  {
+    label: 'Satélite GOES-16 — Sudamérica visible',
+    url: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/sa/GEOCOLOR/latest.jpg',
+    ts: 'NOAA / GOES-16 · Actualización automática'
+  },
+  {
+    label: 'Satélite GOES-16 — Infrarrojo (IR)',
+    url: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/sa/13/latest.jpg',
+    ts: 'NOAA / GOES-16 Canal 13 (IR) · Actualización automática'
+  },
+  {
+    label: 'Radar Nacional — SMN Argentina',
+    url: 'https://www.smn.gob.ar/sites/default/files/imagenes/radar/radar-nacional.gif',
+    ts: 'SMN Argentina · Se actualiza cada ~10 minutos'
+  },
+  {
+    label: 'Satélite IR — SMN Argentina',
+    url: 'https://www.smn.gob.ar/sites/default/files/imagenes/satelite/satelitecanal4-SudAmerica.jpg',
+    ts: 'SMN Argentina · Canal 4 IR · Se actualiza cada ~30 minutos'
+  }
+];
+
+function openWeatherPanel() {
+  document.getElementById('weather-overlay').classList.add('open');
+  renderSatImages();
+}
+function closeWeatherPanel() {
+  document.getElementById('weather-overlay').classList.remove('open');
+}
+function switchWpTab(btn) {
+  document.querySelectorAll('.wp-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.wp-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+  if (btn.getAttribute('data-tab') === 'wp-satellite-sec') renderSatImages();
+}
+
+function wpShowError(msg) {
+  const el = document.getElementById('wp-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+function wpHideError() { document.getElementById('wp-error').style.display = 'none'; }
+
+async function fetchWeather() {
+  const locInput = document.getElementById('wp-loc-input').value.trim();
+  if (!locInput) { wpShowError('Escribí una ciudad'); return; }
+
+  wpHideError();
+  const btn = document.getElementById('wp-fetch-btn');
+  btn.disabled = true; btn.textContent = '⏳';
+
+  try {
+    // 1. Geocoding: nombre → lat/lon
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locInput)}&count=1&language=es&format=json`
+    );
+    const geoData = await geoRes.json();
+    if (!geoData.results?.length) { wpShowError('No se encontró esa ciudad. Probá con otro nombre.'); return; }
+
+    const loc = geoData.results[0];
+    wpLat = loc.latitude; wpLon = loc.longitude;
+    wpLocationName = `${loc.name}${loc.admin1 ? ', '+loc.admin1 : ''}, ${loc.country}`;
+
+    await loadWeatherData();
+  } catch(err) {
+    wpShowError('Error de conexión: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Buscar';
+  }
+}
+
+async function fetchWeatherGeo() {
+  wpHideError();
+  if (!navigator.geolocation) { wpShowError('Tu navegador no soporta geolocalización'); return; }
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      wpLat = pos.coords.latitude; wpLon = pos.coords.longitude;
+      // Reverse geocoding via Open-Meteo
+      try {
+        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${wpLat}&longitude=${wpLon}&count=1&language=es&format=json`);
+        const d = await r.json();
+        wpLocationName = d.results?.[0]?.name || `${wpLat.toFixed(2)}, ${wpLon.toFixed(2)}`;
+      } catch(_) { wpLocationName = `${wpLat.toFixed(2)}, ${wpLon.toFixed(2)}`; }
+      await loadWeatherData();
+    },
+    err => wpShowError('No se pudo obtener tu ubicación: ' + err.message)
+  );
+}
+
+async function loadWeatherData() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${wpLat}&longitude=${wpLon}` +
+    `&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,` +
+    `wind_speed_10m,wind_direction_10m,surface_pressure,uv_index` +
+    `&hourly=precipitation_probability` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max` +
+    `&timezone=auto&forecast_days=7`;
+
+  const res  = await fetch(url);
+  if (!res.ok) { wpShowError('Error al obtener datos meteorológicos'); return; }
+  const data = await res.json();
+  wpWeatherData = { ...data, locationName: wpLocationName, lat: wpLat, lon: wpLon };
+
+  renderCurrentWeather(data);
+  renderForecast(data);
+
+  document.getElementById('wp-tabs').style.display   = 'flex';
+  document.getElementById('wp-content').style.display = 'block';
+}
+
+function windDir(deg) {
+  const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function renderCurrentWeather(data) {
+  const c = data.current;
+  const code = c.weather_code;
+  document.getElementById('wp-loc-label').textContent = wpLocationName;
+  document.getElementById('wp-temp').innerHTML  = `${Math.round(c.temperature_2m)}<span>°C</span>`;
+  document.getElementById('wp-desc').textContent = `${WP_WEATHER_ICON[code] || '🌡'} ${WP_WEATHER_CODES[code] || 'Condición desconocida'}`;
+  document.getElementById('wp-feel').textContent = `${Math.round(c.apparent_temperature)}°C`;
+  document.getElementById('wp-hum').textContent  = `${c.relative_humidity_2m}%`;
+  document.getElementById('wp-wind').textContent = `${Math.round(c.wind_speed_10m)} km/h ${windDir(c.wind_direction_10m)}`;
+  document.getElementById('wp-rain1h').textContent = `${(c.precipitation || 0).toFixed(1)} mm`;
+  document.getElementById('wp-press').textContent  = `${Math.round(c.surface_pressure || 0)} hPa`;
+  document.getElementById('wp-uv').textContent  = c.uv_index != null ? c.uv_index.toFixed(1) : '—';
+}
+
+function renderForecast(data) {
+  const grid = document.getElementById('wp-forecast-grid');
+  grid.innerHTML = '';
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  (data.daily.time || []).forEach((dateStr, i) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const code = data.daily.weather_code[i];
+    const el = document.createElement('div');
+    el.className = 'wp-day';
+    el.innerHTML = `
+      <div class="wp-day-name">${days[d.getDay()]}</div>
+      <div class="wp-day-icon">${WP_WEATHER_ICON[code] || '🌡'}</div>
+      <div class="wp-day-max">${Math.round(data.daily.temperature_2m_max[i])}°</div>
+      <div class="wp-day-min">${Math.round(data.daily.temperature_2m_min[i])}°</div>
+      <div class="wp-day-rain">💧 ${Math.round(data.daily.precipitation_probability_max[i] || 0)}%</div>`;
+    grid.appendChild(el);
+  });
+}
+
+function renderSatImages() {
+  const grid = document.getElementById('wp-sat-grid');
+  grid.innerHTML = '';
+  const ts = new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+  WP_SAT_SOURCES.forEach(src => {
+    const card = document.createElement('div');
+    card.className = 'wp-img-card';
+    const cacheBust = `?cb=${Date.now()}`;
+    card.innerHTML = `
+      <div class="wp-img-label">${src.label}</div>
+      <div class="wp-img-ts">${src.ts}</div>
+      <img src="${src.url}${cacheBust}" alt="${src.label}" onerror="this.parentElement.innerHTML='<div class=\\'wp-img-err\\'>⚠️ Imagen no disponible en este momento.<br>Las imágenes del SMN pueden estar temporalmente fuera de servicio.</div>'"/>
+      <button class="wp-img-refresh" onclick="refreshSatImage(this, '${src.url}')">↻ Refrescar</button>`;
+    grid.appendChild(card);
+  });
+}
+
+function refreshSatImage(btn, baseUrl) {
+  const img = btn.previousElementSibling;
+  if (img && img.tagName === 'IMG') {
+    img.src = baseUrl + '?cb=' + Date.now();
+    btn.textContent = '⏳';
+    img.onload = () => { btn.textContent = '↻ Refrescar'; };
+    img.onerror = () => { btn.textContent = '↻ Refrescar'; };
+  }
+}
+
+// ── Análisis IA: datos numéricos ──────────────────────────
+async function analyzeWeatherText() {
+  if (!wpWeatherData) { wpShowError('Primero buscá una ciudad'); return; }
+  switchWpTab(document.querySelector('[data-tab="wp-ai-sec"]'));
+
+  const box = document.getElementById('wp-ai-box');
+  box.className = 'wp-ai-box loading';
+  box.innerHTML = '<span class="wp-spinner"></span>Analizando condiciones meteorológicas…';
+
+  const c = wpWeatherData.current;
+  const daily = wpWeatherData.daily;
+  const code  = c.weather_code;
+  const forecastLines = (daily.time || []).map((d,i) =>
+    `  ${d}: ${WP_WEATHER_CODES[daily.weather_code[i]]||'?'}, máx ${Math.round(daily.temperature_2m_max[i])}°C / mín ${Math.round(daily.temperature_2m_min[i])}°C, prob lluvia ${daily.precipitation_probability_max[i]||0}%`
+  ).join('\n');
+
+  const prompt = `Sos un meteorólogo experto. Analizá los siguientes datos meteorológicos actuales y el pronóstico de los próximos 7 días para ${wpWeatherData.locationName} (lat ${wpWeatherData.lat?.toFixed(2)}, lon ${wpWeatherData.lon?.toFixed(2)}) y elaborá un análisis en español rioplatense, claro y didáctico. Incluí: condición actual, interpretación de los parámetros relevantes (sensación térmica, viento, presión, UV), tendencia general de la semana, y recomendaciones prácticas.
+
+DATOS ACTUALES:
+- Temperatura: ${Math.round(c.temperature_2m)}°C (sensación: ${Math.round(c.apparent_temperature)}°C)
+- Condición: ${WP_WEATHER_CODES[code] || code}
+- Humedad: ${c.relative_humidity_2m}%
+- Viento: ${Math.round(c.wind_speed_10m)} km/h (${windDir(c.wind_direction_10m)})
+- Lluvia última hora: ${(c.precipitation||0).toFixed(1)} mm
+- Presión: ${Math.round(c.surface_pressure||0)} hPa
+- Índice UV: ${c.uv_index ?? '—'}
+
+PRONÓSTICO 7 DÍAS:
+${forecastLines}
+
+Respondé en español rioplatense. Sé concreto y útil, no genérico.`;
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    box.className = 'wp-ai-box';
+    if (!res.ok || data.error) {
+      box.innerHTML = `⚠️ Error: ${escapeHtml(data.error || 'Sin respuesta del servidor.')}`;
+    } else {
+      box.innerHTML = renderMarkdownBody(data.reply);
+    }
+  } catch(err) {
+    box.className = 'wp-ai-box';
+    box.innerHTML = '⚠️ No se pudo conectar al servidor.';
+  }
+}
+
+// ── Análisis IA: imágenes satelitales ────────────────────
+async function analyzeWeatherImages() {
+  switchWpTab(document.querySelector('[data-tab="wp-ai-sec"]'));
+  const box = document.getElementById('wp-ai-box');
+  box.className = 'wp-ai-box loading';
+  box.innerHTML = '<span class="wp-spinner"></span>Descargando imágenes y analizando…';
+
+  // Convertimos las 2 primeras imágenes a base64 para mandárselas al modelo de visión
+  async function imgToBase64(url) {
+    try {
+      // Las imágenes del SMN/NOAA no tienen CORS, así que las pedimos via proxy canvas
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url + '?cb=' + Date.now())}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch(_) { return null; }
+  }
+
+  const sources = WP_SAT_SOURCES.slice(0, 4);
+  const images  = (await Promise.all(sources.map(s => imgToBase64(s.url)))).filter(Boolean);
+
+  if (!images.length) {
+    box.className = 'wp-ai-box';
+    box.innerHTML = '⚠️ No se pudieron obtener las imágenes satelitales. Las fuentes pueden estar temporalmente no disponibles. Usá el botón "Analizar condiciones actuales" en su lugar.';
+    return;
+  }
+
+  const locCtx = wpWeatherData
+    ? ` La ubicación de referencia es ${wpWeatherData.locationName} (lat ${wpWeatherData.lat?.toFixed(2)}, lon ${wpWeatherData.lon?.toFixed(2)}).`
+    : '';
+
+  const content = [
+    ...images.map((dataUrl, i) => ({
+      type: 'image_url',
+      image_url: { url: dataUrl }
+    })),
+    {
+      type: 'text',
+      text: `Estas son imágenes meteorológicas satelitales e IR de Sudamérica y radar nacional de Argentina.${locCtx} Analizalas en español rioplatense: describí los sistemas de nubosidad visibles, frentes, zonas de lluvia o convección, y elaborá un pronóstico a corto plazo (próximas 6–12 horas) para la región. Sé técnico pero claro.`
+    }
+  ];
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content }], hasImages: true })
+    });
+    const data = await res.json();
+    box.className = 'wp-ai-box';
+    if (!res.ok || data.error) {
+      box.innerHTML = `⚠️ Error: ${escapeHtml(data.error || 'Sin respuesta.')}`;
+    } else {
+      box.innerHTML = renderMarkdownBody(data.reply);
+    }
+  } catch(err) {
+    box.className = 'wp-ai-box';
+    box.innerHTML = '⚠️ No se pudo conectar al servidor.';
+  }
+}
+// ══ /Panel Clima ══════════════════════════════════════════
 
 </script>
 </body>
