@@ -404,6 +404,17 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .icon-btn { padding: 6px 7px; font-size: 11px; }
   .mode-btn { font-size: 10.5px; }
 }
+
+/* ── Mapa de conocimiento: lista lateral de temas ── */
+.kmap-topic-item { display:flex; align-items:center; gap:8px; padding:7px 4px; border-bottom:1px solid var(--border); }
+.kmap-topic-item:last-child { border-bottom:none; }
+.kmap-topic-name { font-size:12px; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kmap-topic-pct { font-size:11px; font-weight:700; min-width:30px; text-align:right; }
+.kmap-bar-wrap { width:60px; height:5px; background:var(--surface-3); border-radius:3px; flex-shrink:0; }
+.kmap-bar { height:100%; border-radius:3px; transition:width .4s; }
+
+/* ── Evaluador Académico ── */
+#exam-output { white-space:pre-wrap; }
 </style>
 </head>
 <body>
@@ -483,7 +494,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eterneura elige automáticamente entre varios modelos gratuitos (Groq primero, OpenRouter como respaldo) y cambia solo si alguno está saturado. Cuando se adjunta una imagen (plano, diagrama, foto), usa modelos gratuitos con visión (Qwen-VL, Llama Vision, Gemma) vía OpenRouter. No requiere configuración.</div>
+      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama3-70b → mixtral-8x7b), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (Qwen-VL, Llama Vision). No requiere configuración adicional.</div>
     </div>
 
     <div class="modal-section">
@@ -531,6 +542,12 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       </div>
     </div>
 
+    <div class="modal-section">
+      <div class="modal-label">Evaluador Académico</div>
+      <div class="modal-hint">Generá exámenes completos con opción múltiple, verdadero/falso y preguntas de desarrollo sobre cualquier tema. El resultado se puede descargar en TXT o Markdown.</div>
+      <button class="btn-secondary" style="width:100%" onclick="closeTeacherModal();openExamModal()">📝 Abrir Evaluador Académico</button>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeTeacherModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveTeacherConfig()">💾 Guardar configuración</button>
@@ -540,7 +557,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
 <!-- Knowledge map modal -->
 <div class="modal-overlay" id="map-modal">
-  <div class="modal" style="width:680px">
+  <div class="modal" style="width:780px;max-width:97vw">
     <div class="modal-header">
       <div>
         <div class="modal-title" style="font-family:var(--display)">🗺️ Mapa de Conocimiento</div>
@@ -548,7 +565,78 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       </div>
       <button class="modal-close" onclick="closeKnowledgeMap()">×</button>
     </div>
-    <div id="map-canvas" style="text-align:center"></div>
+    <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">
+      <div id="map-canvas" style="text-align:center;flex:1;min-width:260px"></div>
+      <div id="map-topic-list" style="flex:0 0 220px;max-height:420px;overflow-y:auto;padding:4px 0"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Evaluador Académico modal -->
+<div class="modal-overlay" id="exam-modal">
+  <div class="modal" style="width:700px;max-width:97vw">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">📝 Evaluador Académico</div>
+        <div class="modal-subtitle">Generá un examen completo y descargable sobre cualquier tema</div>
+      </div>
+      <button class="modal-close" onclick="closeExamModal()">×</button>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Tema del examen</div>
+      <input class="field-input" id="exam-topic" placeholder="Ej: Leyes de Newton, Segunda Guerra Mundial, Fotosíntesis…"/>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-row">
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Nivel educativo</div>
+          <select class="model-select" id="exam-level">
+            <option value="primaria">Primaria (6.º - 7.º)</option>
+            <option value="secundaria" selected>Secundaria</option>
+            <option value="universitario">Universitario</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Tipo de preguntas</div>
+          <select class="model-select" id="exam-type">
+            <option value="mixto" selected>Mixto (V/F + opción múltiple + desarrollo)</option>
+            <option value="multiple">Solo opción múltiple</option>
+            <option value="desarrollo">Solo desarrollo / ensayo</option>
+            <option value="vf">Solo Verdadero / Falso</option>
+          </select>
+        </div>
+        <div style="flex:0 0 90px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Preguntas</div>
+          <input class="field-input" id="exam-count" type="number" min="3" max="20" value="8" style="text-align:center"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">Instrucciones adicionales (opcional)</div>
+      <textarea class="field-input" id="exam-extra" rows="2" placeholder="Ej: Incluir una pregunta sobre el experimento de la manzana. Evitar preguntas de memoria pura."></textarea>
+    </div>
+
+    <div class="modal-section" id="exam-output-section" style="display:none">
+      <div class="modal-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Examen generado</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="downloadExamTxt()">⬇ TXT</button>
+          <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="downloadExamMd()">⬇ MD</button>
+          <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="copyExam()">📋 Copiar</button>
+        </div>
+      </div>
+      <div id="exam-output" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:8px;max-height:340px;overflow-y:auto;font-size:13px;line-height:1.65;white-space:pre-wrap;font-family:var(--font);color:var(--text)"></div>
+    </div>
+
+    <div id="exam-err" style="display:none;color:var(--red);font-size:13px;margin:8px 0"></div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeExamModal()">Cerrar</button>
+      <button class="btn-primary" id="exam-generate-btn" onclick="generateExam()">✨ Generar examen</button>
+    </div>
   </div>
 </div>
 
@@ -560,7 +648,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   <aside class="sidebar">
     <div class="sb-logo">
       <div class="logo-name" id="ai-name-display">Etern<span>eura</span></div>
-      <div class="logo-tag">IA Educativa · v4</div>
+      <div class="logo-tag">IA Educativa · v4.5</div>
     </div>
 
     <div class="sb-profile-chip" id="sb-profile-chip"></div>
@@ -613,6 +701,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
           <div class="empty-profile">Aún no trabajaste ningún tema. Definí un tema y empezá a estudiar.</div>
         </div>
         <button class="ghost-btn safe" onclick="openKnowledgeMap()">🗺️ Ver mapa de conocimiento</button>
+        <button class="ghost-btn safe" onclick="openExamModal()" style="margin-top:4px">📝 Evaluador académico</button>
         <button class="ghost-btn action" onclick="requestSessionSummary()">📋 Resumen de sesión</button>
         <button class="ghost-btn" onclick="clearStudentMemory()">Borrar perfil cognitivo</button>
       </div>
@@ -646,6 +735,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
           <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
           <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
           <button class="starter" onclick="sendMessage('Mostrame un diagrama de este tema')">📐 Mostrame un diagrama</button>
+        <button class="starter" onclick="openExamModal()">📝 Generar un examen</button>
         </div>
       </div>
     </div>
@@ -1212,11 +1302,13 @@ function openKnowledgeMap() {
 function closeKnowledgeMap() { document.getElementById('map-modal').classList.remove('open'); }
 
 function renderKnowledgeMap() {
-  const container = document.getElementById('map-canvas');
-  const entries = Object.entries(memory.cognitiveProfile || {});
+  const container  = document.getElementById('map-canvas');
+  const topicList  = document.getElementById('map-topic-list');
+  const entries    = Object.entries(memory.cognitiveProfile || {});
 
   if (!entries.length) {
     container.innerHTML = '<div class="empty-profile" style="padding:50px 20px">Todavía no hay temas para mostrar.<br>Estudiá un poco y volvé a abrir el mapa.</div>';
+    if (topicList) topicList.innerHTML = '';
     return;
   }
 
@@ -1267,6 +1359,21 @@ function renderKnowledgeMap() {
       <span><i style="background:var(--amber)"></i>En progreso</span>
       <span><i style="background:var(--green)"></i>Avanzado</span>
     </div>`;
+
+  // ── Lista lateral de temas con barra de progreso ──
+  if (topicList) {
+    const sorted = [...nodes].sort((a, b) => b.pct - a.pct);
+    topicList.innerHTML = `
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">
+        Temas (${sorted.length}) — ordenados por dominio
+      </div>
+      ${sorted.map(nd => `
+        <div class="kmap-topic-item">
+          <div class="kmap-topic-name" title="${escapeHtml(nd.topic)}">${escapeHtml(nd.topic)}</div>
+          <div class="kmap-bar-wrap"><div class="kmap-bar" style="width:${nd.pct}%;background:${nd.color}"></div></div>
+          <div class="kmap-topic-pct" style="color:${nd.color}">${nd.pct}%</div>
+        </div>`).join('')}`;
+  }
 }
 
 // ── Student docs ───────────────────────────────────────
@@ -1809,6 +1916,138 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+// ── Evaluador Académico ────────────────────────────────
+let lastExamText = '';
+
+function openExamModal() {
+  // Pre-cargar el tema activo si hay uno
+  const subj = document.getElementById('subject-input')?.value.trim();
+  if (subj) document.getElementById('exam-topic').value = subj;
+  document.getElementById('exam-output-section').style.display = 'none';
+  document.getElementById('exam-err').style.display = 'none';
+  lastExamText = '';
+  document.getElementById('exam-modal').classList.add('open');
+}
+
+function closeExamModal() {
+  document.getElementById('exam-modal').classList.remove('open');
+}
+
+async function generateExam() {
+  const topic  = document.getElementById('exam-topic').value.trim();
+  const level  = document.getElementById('exam-level').value;
+  const type   = document.getElementById('exam-type').value;
+  const count  = parseInt(document.getElementById('exam-count').value, 10) || 8;
+  const extra  = document.getElementById('exam-extra').value.trim();
+  const errEl  = document.getElementById('exam-err');
+  const outSec = document.getElementById('exam-output-section');
+  const outEl  = document.getElementById('exam-output');
+  const btn    = document.getElementById('exam-generate-btn');
+
+  errEl.style.display = 'none';
+  if (!topic) { errEl.textContent = 'Ingresá el tema del examen.'; errEl.style.display = 'block'; return; }
+
+  const levelLabels = { primaria: 'Educación Primaria (6.º/7.º grado)', secundaria: 'Educación Secundaria', universitario: 'Nivel Universitario' };
+  const typeLabels  = {
+    mixto:      'preguntas mixtas: aproximadamente un tercio Verdadero/Falso, un tercio opción múltiple con 4 opciones (A/B/C/D), y un tercio preguntas de desarrollo o ensayo breve',
+    multiple:   'solo preguntas de opción múltiple con 4 opciones (A/B/C/D) cada una',
+    desarrollo: 'solo preguntas de desarrollo o ensayo breve (2–5 oraciones de respuesta esperada)',
+    vf:         'solo preguntas de Verdadero o Falso, con una breve justificación requerida'
+  };
+
+  const aiName  = teacherConfig.aiName || 'Eterneura';
+  const subject = teacherConfig.subject || '';
+
+  const systemMsg = `Sos ${aiName}, una IA educativa especializada en evaluación académica. Tu tarea es generar exámenes escolares de alta calidad en español rioplatense (vos, ustedes). Los exámenes deben ser claros, pedagógicamente sólidos y listos para imprimir o distribuir.`;
+
+  const userMsg = `Generá un examen de ${count} preguntas sobre el tema "${topic}" para ${levelLabels[level] || 'Educación Secundaria'}.
+Tipo de preguntas: ${typeLabels[type] || typeLabels.mixto}.
+${subject ? `Materia / área: ${subject}.` : ''}
+${extra ? `Indicaciones adicionales del docente: ${extra}` : ''}
+
+FORMATO OBLIGATORIO — seguí este esquema exactamente, sin introducción ni cierre:
+
+EXAMEN: [TÍTULO DEL EXAMEN]
+Tema: ${topic}
+Nivel: ${levelLabels[level]}
+Fecha: _________  Alumno/a: _________________________  Curso: ________
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[Para cada sección usá un encabezado claro, ej: SECCIÓN 1 — Verdadero o Falso]
+[Numerá las preguntas en forma continua del 1 al ${count}]
+[Para opción múltiple: incluí las 4 opciones debajo de cada pregunta]
+[Dejá espacio en blanco suficiente después de cada pregunta de desarrollo para que el alumno pueda escribir]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLAVE DE RESPUESTAS (solo para el docente):
+[Listá las respuestas correctas para cada pregunta numerada]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+No agregues ningún texto fuera del examen. No uses asteriscos ni markdown. Solo texto plano estructurado.`;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Generando…';
+  outSec.style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [
+        { role: 'system', content: systemMsg },
+        { role: 'user',   content: userMsg   }
+      ]})
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      errEl.textContent = '⚠️ Error al generar el examen: ' + (data.error || 'Sin respuesta del servidor.');
+      errEl.style.display = 'block';
+    } else {
+      lastExamText = data.reply || '';
+      outEl.textContent = lastExamText;
+      outSec.style.display = 'block';
+      outEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  } catch(err) {
+    errEl.textContent = '⚠️ No se pudo conectar. Verificá tu conexión.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Generar examen';
+  }
+}
+
+function downloadExamTxt() {
+  if (!lastExamText) return;
+  const topic = document.getElementById('exam-topic').value.trim() || 'examen';
+  const blob  = new Blob([lastExamText], { type: 'text/plain;charset=utf-8' });
+  const a     = document.createElement('a');
+  a.href      = URL.createObjectURL(blob);
+  a.download  = `examen_${topic.replace(/\s+/g,'_').toLowerCase()}.txt`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function downloadExamMd() {
+  if (!lastExamText) return;
+  const topic = document.getElementById('exam-topic').value.trim() || 'examen';
+  const md    = lastExamText.replace(/━+/g, '---');
+  const blob  = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const a     = document.createElement('a');
+  a.href      = URL.createObjectURL(blob);
+  a.download  = `examen_${topic.replace(/\s+/g,'_').toLowerCase()}.md`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function copyExam() {
+  if (!lastExamText) return;
+  navigator.clipboard.writeText(lastExamText).then(() => showToast('Examen copiado al portapapeles'));
+}
+
 </script>
 </body>
 </html>
