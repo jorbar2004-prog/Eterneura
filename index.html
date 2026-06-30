@@ -1057,7 +1057,8 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
             <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
         </button>
-        <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Dictado por voz (Chrome)">🎤</button>
+        <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Dictado por voz">🎤</button>
+        <button class="voice-btn" id="tts-toggle-btn" onclick="toggleTTS()" title="Voz de respuesta: OFF (clic para activar)" style="font-size:15px">🔇</button>
       </div>
     </div>
   </main>
@@ -1283,7 +1284,15 @@ Luego desarrollás el análisis con secciones claras. Al final, SIEMPRE incluís
 
 PRINCIPIO EDUCATIVO: el objetivo no es solo decir "esto es falso" sino enseñar al usuario a detectarlo por sí mismo la próxima vez. Explicá el razonamiento, no solo la conclusión.`,
   free:
-    'Estás en modo Conversación Libre. Respondés cualquier pregunta con honestidad, claridad y buen criterio: cultura general, ciencia, historia, tecnología, filosofía, noticias, preguntas personales, o simplemente charlar. No estás limitado al ámbito educativo. Usás español rioplatense (vos, ustedes), sos cálido, directo y genuinamente útil. Cuando el tema lo amerite, podés sugerir que profundizar en ello desde un modo pedagógico sería aún más productivo, pero sin forzarlo.'
+    `Sos Eterneura en modo Conversación Libre. Respondés cualquier pregunta con honestidad, claridad y criterio: cultura general, ciencia, historia, tecnología, filosofía, consejos, charla, etc.
+
+IMPORTANTE — información en tiempo real:
+- NO tenés acceso a internet ni a datos en tiempo real (partidos, noticias de hoy, precios actuales, clima, resultados deportivos, etc.).
+- Si te preguntan algo que requiere datos en tiempo real, sé DIRECTO: decí claramente que no tenés esa información actualizada, explicá brevemente por qué, y sugerí dónde encontrarla (sitio oficial, Google, app específica). No rodees la respuesta con listas de alternativas genéricas.
+- Ejemplo correcto: "No tengo acceso a datos en tiempo real, así que no puedo decirte cuándo juega Argentina. Para eso lo más rápido es buscar en Google 'próximo partido Argentina' o entrar a AFA.com.ar."
+- Ejemplo incorrecto: listar cinco fuentes genéricas y tres preguntas de seguimiento.
+
+Para todo lo demás: respondés directamente, con confianza, en español rioplatense (vos, ustedes). Sos cálido, directo y genuinamente útil. Cuando el tema da para un estudio más profundo, podés sugerirlo, pero sin forzarlo.`
 };
 
 // ── State ──────────────────────────────────────────────
@@ -3025,14 +3034,13 @@ function exportSessionPDF(id) {
 let recognition  = null;
 let synthesis    = window.speechSynthesis;
 let voiceActive  = false;
-let ttsEnabled   = true;  // TTS de respuestas IA — toggle desde el botón mantenido presionado
+let ttsEnabled   = false;  // TTS desactivado por defecto — el usuario lo activa si quiere
 
 function initVoice() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    document.getElementById('voice-btn').title = 'Voz no disponible (usá Chrome)';
-    document.getElementById('voice-btn').style.opacity = '.35';
-    document.getElementById('voice-btn').style.cursor = 'not-allowed';
+    const btn = document.getElementById('voice-btn');
+    if (btn) { btn.title = 'Voz no disponible (usá Chrome)'; btn.style.opacity = '.35'; btn.style.cursor = 'not-allowed'; }
     return;
   }
   recognition = new SpeechRecognition();
@@ -3046,7 +3054,6 @@ function initVoice() {
     input.value = (input.value ? input.value + ' ' : '') + transcript;
     autoGrow(input);
     stopListening();
-    // Auto-send si termina con signo de puntuación fuerte o tiene más de 3 palabras
     if (/[.!?]$/.test(transcript) || transcript.split(' ').length >= 3) {
       setTimeout(() => sendMessage(), 300);
     }
@@ -3059,13 +3066,13 @@ function initVoice() {
 }
 
 function toggleVoice() {
-  if (!recognition) { showToast('Voz no disponible en este navegador. Usá Chrome.'); return; }
+  if (!recognition) { showToast('Dictado de voz no disponible en este navegador. Usá Chrome o Edge.'); return; }
   if (voiceActive) { stopListening(); }
   else { startListening(); }
 }
 
 function startListening() {
-  if (synthesis.speaking) synthesis.cancel();
+  if (synthesis?.speaking) synthesis.cancel();
   voiceActive = true;
   const btn = document.getElementById('voice-btn');
   btn.classList.add('listening');
@@ -3079,37 +3086,68 @@ function stopListening() {
   try { recognition?.stop(); } catch(_) {}
   const btn = document.getElementById('voice-btn');
   btn.classList.remove('listening');
-  btn.title = 'Dictado por voz (Chrome)';
+  btn.title = 'Dictado por voz';
   btn.textContent = '🎤';
+}
+
+// ── TTS toggle ────────────────────────────────────────────
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  localStorage.setItem('ea_tts', ttsEnabled ? '1' : '0');
+  const btn = document.getElementById('tts-toggle-btn');
+  if (btn) {
+    btn.textContent  = ttsEnabled ? '🔊' : '🔇';
+    btn.title        = ttsEnabled ? 'Voz de respuesta: ON (clic para desactivar)' : 'Voz de respuesta: OFF (clic para activar)';
+    btn.style.color  = ttsEnabled ? 'var(--teal)' : '';
+    btn.style.borderColor = ttsEnabled ? 'var(--teal)' : '';
+  }
+  if (!ttsEnabled && synthesis?.speaking) synthesis.cancel();
+  showToast(ttsEnabled ? '🔊 Voz de respuesta activada' : '🔇 Voz de respuesta desactivada');
 }
 
 // TTS: leer la respuesta de la IA en voz alta
 function speakResponse(text) {
   if (!ttsEnabled || !synthesis) return;
   synthesis.cancel();
-  // Limpiar markdown para TTS
   const clean = text
     .replace(/```[\s\S]*?```/g, 'bloque de código omitido.')
     .replace(/`[^`]+`/g, '')
     .replace(/#{1,3} /g, '')
     .replace(/\*\*/g, '').replace(/\*/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .slice(0, 1200);  // limitar largo del audio
+    .slice(0, 1200);
+
+  // Intentar elegir la mejor voz en español disponible
+  const voices = synthesis.getVoices();
+  const esVoice = voices.find(v => v.lang.startsWith('es') && v.localService) ||
+                  voices.find(v => v.lang.startsWith('es')) || null;
 
   const utterance = new SpeechSynthesisUtterance(clean);
   utterance.lang  = 'es-AR';
-  utterance.rate  = 1.05;
+  utterance.rate  = 1.0;
   utterance.pitch = 1.0;
+  if (esVoice) utterance.voice = esVoice;
 
   const btn = document.getElementById('voice-btn');
-  utterance.onstart = () => { btn.classList.add('speaking'); btn.textContent = '🔊'; };
-  utterance.onend   = () => { btn.classList.remove('speaking'); btn.textContent = '🎤'; };
-  utterance.onerror = () => { btn.classList.remove('speaking'); btn.textContent = '🎤'; };
+  utterance.onstart = () => { if(btn){btn.classList.add('speaking'); btn.textContent='🔊';} };
+  utterance.onend   = () => { if(btn){btn.classList.remove('speaking'); btn.textContent='🎤';} };
+  utterance.onerror = () => { if(btn){btn.classList.remove('speaking'); btn.textContent='🎤';} };
   synthesis.speak(utterance);
 }
 
 // Inicializar voz al cargar
-document.addEventListener('DOMContentLoaded', () => { initVoice(); });
+document.addEventListener('DOMContentLoaded', () => {
+  initVoice();
+  // Restaurar preferencia de TTS
+  ttsEnabled = localStorage.getItem('ea_tts') === '1';
+  const btn = document.getElementById('tts-toggle-btn');
+  if (btn) {
+    btn.textContent  = ttsEnabled ? '🔊' : '🔇';
+    btn.title        = ttsEnabled ? 'Voz de respuesta: ON (clic para desactivar)' : 'Voz de respuesta: OFF (clic para activar)';
+    btn.style.color  = ttsEnabled ? 'var(--teal)' : '';
+    btn.style.borderColor = ttsEnabled ? 'var(--teal)' : '';
+  }
+});
 
 // ══ /Features v4.7 ═══════════════════════════════════════
 
