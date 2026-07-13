@@ -1,15 +1,16 @@
-// Cloudflare Pages Function — responde en /api/chat
+// Netlify Function — /api/chat
 //
-// ── Motores de IA, en orden de preferencia ──
-// Para texto: 1) Groq (gratis, ~14.400 msj/día)  2) OpenRouter (respaldo)
-// Para imágenes (visión): OpenRouter, con modelos gratuitos de visión.
+// ── Motores de IA ──
+// Texto:    1) Groq (llama-3.3-70b-versatile, etc.)   2) OpenRouter (respaldo)
+// Visión:   OpenRouter (modelos gratuitos con visión)
+// Búsqueda: Brave Search API (BRAVE_API_KEY) — se activa automáticamente cuando
+//           el modelo necesita información actual. El backend orquesta el ciclo
+//           tool-use → búsqueda → segunda llamada al modelo con resultados.
 
-// Modelos Groq: nombres exactos según https://console.groq.com/docs/models
-// IMPORTANTE: Groq usa IDs propios, NO los prefijos openai/ o qwen/ de OpenRouter.
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',   // modelo principal — máxima calidad
-  'llama-3.1-70b-versatile',   // alternativa estable
-  'gemma2-9b-it'               // respaldo liviano — muy confiable
+  'llama-3.3-70b-versatile',
+  'llama3-70b-8192',
+  'mixtral-8x7b-32768'
 ];
 
 const OPENROUTER_MODELS = [
@@ -27,111 +28,219 @@ const OPENROUTER_VISION_MODELS = [
   'google/gemma-3-27b-it:free'
 ];
 
-async function callGroq(apiKey, model, messages) {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+// Definición de la tool de búsqueda web (formato OpenAI tool_use)
+const WEB_SEARCH_TOOL = {
+  type: 'function',
+  function: {
+    name: 'web_search',
+    description: 'Busca información actual en internet. Usá esta tool cuando necesites datos recientes, noticias, hechos que puedan haber cambiado, o cualquier cosa que no tengas seguridad de conocer con certeza. Devuelve los títulos, URLs y descripciones de los resultados más relevantes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'La consulta de búsqueda en el idioma más apropiado (español para temas locales/argentinos, inglés para temas técnicos o internacionales).'
+        }
+      },
+      required: ['query']
+    }
+  }
+};
+
+async function braveSearch(apiKey, query) {
+  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=6&search_lang=es&ui_lang=es-AR&country=AR`;
+  const res  = await fetch(url, {
+    headers: {
+      'Accept': 'application/json',
+      'Accept-Encoding': 'gzip',
+      'X-Subscription-Token': apiKey
+    }
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.web?.results || []).map(r => ({
+    title:       r.title       || '',
+    url:         r.url         || '',
+    description: r.description || ''
+  }));
+}
+
+function formatSearchResults(results, query) {
+  if (!results.length) return `No se encontraron resultados para: "${query}".`;
+  return `Resultados de búsqueda web para "${query}":\n\n` +
+    results.map((r, i) =>
+      `${i + 1}. **${r.title}**\n   ${r.description}\n   Fuente: ${r.url}`
+    ).join('\n\n');
+}
+
+async function callGroq(apiKey, model, messages, tools) {
+  const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
+  if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
+  const res  = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, max_tokens: 2200, temperature: 0.7 })
+    body: JSON.stringify(body)
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
-async function callOpenRouter(apiKey, model, messages) {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+async function callOpenRouter(apiKey, model, messages, tools) {
+  const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
+  if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
+  const res  = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eterneura.pages.dev',
+      'HTTP-Referer': 'https://eterneura.netlify.app',
       'X-Title': 'Eterneura'
     },
-    body: JSON.stringify({ model, messages, max_tokens: 2200, temperature: 0.7 })
+    body: JSON.stringify(body)
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
-export async function onRequestPost(context) {
+// Llama al modelo y si pide web_search, ejecuta la búsqueda y hace una segunda
+// llamada con los resultados. Máximo 2 rondas de tool-use para no exceder latencia.
+async function callWithSearch(callFn, messages, braveKey) {
+  const tools    = braveKey ? [WEB_SEARCH_TOOL] : [];
+  const result   = await callFn(messages, tools);
+  if (!result.ok) return result;
+
+  const choice   = result.data.choices?.[0];
+  const finish   = choice?.finish_reason;
+
+  // Si el modelo pidió usar la tool de búsqueda
+  if (finish === 'tool_calls' && braveKey) {
+    const toolCalls = choice.message?.tool_calls || [];
+    const assistantMsg = choice.message;
+
+    // Ejecutar todas las búsquedas pedidas (normalmente 1)
+    const toolResults = await Promise.all(
+      toolCalls.map(async tc => {
+        let query = '';
+        try { query = JSON.parse(tc.function.arguments).query || ''; } catch {}
+        const results = query ? await braveSearch(braveKey, query) : [];
+        return {
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: 'web_search',
+          content: formatSearchResults(results, query)
+        };
+      })
+    );
+
+    // Segunda llamada: modelo + historial + resultado de la búsqueda
+    const msgs2   = [...messages, assistantMsg, ...toolResults];
+    const result2 = await callFn(msgs2, []); // sin tools para evitar bucle
+    return result2;
+  }
+
+  return result;
+}
+
+exports.handler = async (event) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
-  const jsonRes = (status, obj) =>
-    new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
-  const groqKey = context.env.GROQ_API_KEY;
-  const orKey   = context.env.OPENROUTER_API_KEY;
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+  if (event.httpMethod !== 'POST')    return { statusCode: 405, body: 'Method Not Allowed' };
 
-  if (!groqKey && !orKey)
-    return jsonRes(500, { error: 'No hay ninguna API key configurada (GROQ_API_KEY ni OPENROUTER_API_KEY).' });
+  const groqKey  = process.env.GROQ_API_KEY;
+  const orKey    = process.env.OPENROUTER_API_KEY;
+  const braveKey = process.env.BRAVE_API_KEY;
+
+  if (!groqKey && !orKey) return {
+    statusCode: 500,
+    headers: { 'Content-Type': 'application/json', ...cors },
+    body: JSON.stringify({ error: 'No hay ninguna API key configurada.' })
+  };
 
   let body;
-  try { body = await context.request.json(); }
-  catch { return jsonRes(400, { error: 'JSON inválido' }); }
+  try { body = JSON.parse(event.body || '{}'); }
+  catch { return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'JSON inválido' }) }; }
 
   const { messages, hasImages } = body;
-  if (!messages?.length) return jsonRes(400, { error: 'Falta messages' });
+  if (!messages?.length) return {
+    statusCode: 400,
+    headers: { 'Content-Type': 'application/json', ...cors },
+    body: JSON.stringify({ error: 'Falta messages' })
+  };
 
-  if (hasImages && !orKey)
-    return jsonRes(500, { error: 'El análisis de imágenes requiere una OPENROUTER_API_KEY configurada.' });
+  if (hasImages && !orKey) return {
+    statusCode: 500,
+    headers: { 'Content-Type': 'application/json', ...cors },
+    body: JSON.stringify({ error: 'El análisis de imágenes requiere OPENROUTER_API_KEY.' })
+  };
 
   let lastError = null;
 
+  // ── Visión: directo a OpenRouter ──
   if (hasImages) {
     for (const model of OPENROUTER_VISION_MODELS) {
       let result;
-      try { result = await callOpenRouter(orKey, model, messages); }
-      catch (err) { lastError = 'OpenRouter (visión): ' + err.message; continue; }
+      try { result = await callOpenRouter(orKey, model, messages, []); }
+      catch (err) { lastError = err.message; continue; }
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return jsonRes(200, { reply, modelUsed: `OpenRouter · ${model}` });
+        return { statusCode: 200, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ reply }) };
       }
-      lastError = result.data.error?.message || `OpenRouter ${result.status} (${model})`;
+      lastError = result.data.error?.message || `OpenRouter ${result.status}`;
       if (result.status !== 429 && result.status !== 404) break;
     }
-    return jsonRes(429, { error: 'Los modelos de visión están saturados. Intentá de nuevo en unos minutos. (' + lastError + ')' });
+    return { statusCode: 429, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ error: 'Modelos de visión saturados. Intentá de nuevo. (' + lastError + ')' }) };
   }
 
+  // ── Texto: Groq primero (con web search si hay BRAVE_API_KEY) ──
   if (groqKey) {
     for (const model of GROQ_MODELS) {
       let result;
-      try { result = await callGroq(groqKey, model, messages); }
-      catch (err) { lastError = 'Groq: ' + err.message; continue; }
+      try {
+        result = await callWithSearch(
+          (msgs, tools) => callGroq(groqKey, model, msgs, tools),
+          messages,
+          braveKey
+        );
+      } catch (err) { lastError = 'Groq: ' + err.message; continue; }
+
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return jsonRes(200, { reply, modelUsed: `Groq · ${model}` });
+        return { statusCode: 200, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ reply }) };
       }
       lastError = result.data.error?.message || `Groq ${result.status} (${model})`;
       if (result.status !== 429 && result.status !== 404) break;
     }
   }
 
+  // ── Texto: OpenRouter como respaldo ──
   if (orKey) {
     for (const model of OPENROUTER_MODELS) {
       let result;
-      try { result = await callOpenRouter(orKey, model, messages); }
-      catch (err) { lastError = 'OpenRouter: ' + err.message; continue; }
+      try {
+        result = await callWithSearch(
+          (msgs, tools) => callOpenRouter(orKey, model, msgs, tools),
+          messages,
+          braveKey
+        );
+      } catch (err) { lastError = 'OpenRouter: ' + err.message; continue; }
+
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return jsonRes(200, { reply, modelUsed: `OpenRouter · ${model}` });
+        return { statusCode: 200, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ reply }) };
       }
       lastError = result.data.error?.message || `OpenRouter ${result.status} (${model})`;
       if (result.status !== 429 && result.status !== 404) break;
     }
   }
 
-  return jsonRes(429, { error: 'Todos los motores gratuitos están saturados. Intentá en unos minutos. (' + lastError + ')' });
-}
-
-export async function onRequestOptions() {
-  return new Response('', {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS'
-    }
-  });
-}
+  return {
+    statusCode: 429,
+    headers: { 'Content-Type': 'application/json', ...cors },
+    body: JSON.stringify({ error: 'Todos los motores gratuitos están saturados. Intentá en unos minutos. (' + lastError + ')' })
+  };
+};
