@@ -1678,7 +1678,14 @@ realistic photo of a mountain climber ascending Aconcagua, dramatic snowy peaks,
 \`\`\`
 El sistema la genera automáticamente. Nunca incluyas personas reales identificables, contenido violento, sexual o inapropiado.
 
-ACCESO A INTERNET: Tenés acceso real a internet a través de la herramienta web_search. Cuando el alumno pregunte sobre noticias recientes, información actualizada, eventos actuales, precios, o cualquier dato que pueda haber cambiado, USÁ la herramienta para buscarlo en lugar de inventar o admitir ignorancia. La herramienta devuelve resultados reales de Brave Search. Citá la fuente cuando uses información de la búsqueda.
+ACCESO A INTERNET: Tenés acceso real a internet a través de la herramienta web_search.
+IMPORTANTE — cuando uses web_search, NO menciones que vas a buscar, NO muestres la query, NO digas "Estoy esperando los resultados", NO escribas "Resultados de la búsqueda:". Directamente presentá la respuesta con la información encontrada, como si ya la supieras, citando la fuente al final con "Fuente: [nombre] (URL)". Cuando el alumno pregunte sobre noticias recientes, información actualizada, eventos actuales, precios, o cualquier dato que pueda haber cambiado, USÁ la herramienta para buscarlo en lugar de inventar o admitir ignorancia. La herramienta devuelve resultados reales de Serper/Google. Citá siempre la fuente cuando uses información de la búsqueda.
+
+FUENTES PARA NOTICIAS ARGENTINAS — seguí este orden de preferencia:
+- PRIORITARIAS (alta confiabilidad): Chequeado (chequeado.com), CONICET Prensa (conicet.gov.ar), Télam (telam.com.ar), APF Digital (apfdigital.com.ar), Página 12 (pagina12.com.ar), El Destape (eldestapeweb.com), Río Negro (rionegro.com.ar), LM Neuquén (lmneuquen.com), Radio UNCo-CALF (radiounco.uncoma.edu.ar o radiocalf.com.ar), Educ.ar (educ.ar), Ministerio de Educación (argentina.gob.ar/educacion), OSINT/fuentes abiertas verificables.
+- EVITAR como fuentes principales (sesgos editoriales marcados o desinformación frecuente): Infobae, Clarín, La Nación, TN. Si aparecen en los resultados como única fuente, mencionalo y buscá confirmación en fuentes prioritarias antes de citar.
+- Para temas científicos: priorizar CONICET, revistas indexadas, universidades nacionales.
+- Para temas educativos de Neuquén: priorizar ATEN (aten.org.ar), LM Neuquén, Río Negro, Radio UNCo.
 
 PRINCIPIOS TRANSVERSALES:
 - Respondés siempre en español rioplatense (vos, ustedes).
@@ -1873,7 +1880,32 @@ function clearChat() {
 }
 
 // ── Markdown ───────────────────────────────────────────
+function stripSearchProcess(text) {
+  // Elimina frases intermedias del proceso de búsqueda que el modelo a veces emite
+  const lines = text.split('
+');
+  const filtered = lines.filter(line => {
+    const l = line.trim().toLowerCase();
+    if (l.includes('estoy esperando los resultado')) return false;
+    if (l.startsWith('resultados de la búsqueda:')) return false;
+    if (l.startsWith('resultados de la busqueda:')) return false;
+    if (l.match(/^voy a (realizar|hacer|efectuar) una búsqueda/i)) return false;
+    if (l.match(/^para obtener .* voy a /i)) return false;
+    return true;
+  });
+  // Eliminar bloques de código de una sola línea que parecen ser la query de búsqueda
+  // (ej: `últimas noticias de Argentina hoy`)
+  return filtered.join('
+').replace(/`[^`
+]{5,80}`
+?/g, (m) => {
+    // Solo eliminar si la línea anterior/posterior sugiere contexto de búsqueda
+    return m; // conservar por defecto, el filtro de líneas arriba ya hace la mayor parte
+  });
+}
+
 function parseMarkdown(text) {
+  text = stripSearchProcess(text);
   // ── Renderizar bloque VEREDICTO: ── (modo Verificador)
   // El modelo genera "VEREDICTO: FALSO/VERDADERO/CUESTIONABLE/NO VERIFICABLE"
   // como primera línea; lo convertimos en una tarjeta visual de veredicto.
