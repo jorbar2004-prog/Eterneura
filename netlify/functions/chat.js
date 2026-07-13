@@ -3,7 +3,7 @@
 // ── Motores de IA ──
 // Texto:    1) Groq (llama-3.3-70b-versatile, etc.)   2) OpenRouter (respaldo)
 // Visión:   OpenRouter (modelos gratuitos con visión)
-// Búsqueda: Brave Search API (BRAVE_API_KEY) — se activa automáticamente cuando
+// Búsqueda: Brave Search API (SERPER_API_KEY) — se activa automáticamente cuando
 //           el modelo necesita información actual. El backend orquesta el ciclo
 //           tool-use → búsqueda → segunda llamada al modelo con resultados.
 
@@ -47,21 +47,21 @@ const WEB_SEARCH_TOOL = {
   }
 };
 
-async function braveSearch(apiKey, query) {
-  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=6&search_lang=es&ui_lang=es-AR&country=AR`;
-  const res  = await fetch(url, {
+async function serperSearch(apiKey, query) {
+  const res = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
     headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': apiKey
-    }
+      'X-API-KEY': apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 6 })
   });
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.web?.results || []).map(r => ({
-    title:       r.title       || '',
-    url:         r.url         || '',
-    description: r.description || ''
+  return (data.organic || []).map(r => ({
+    title:       r.title   || '',
+    url:         r.link    || '',
+    description: r.snippet || ''
   }));
 }
 
@@ -122,7 +122,7 @@ async function callWithSearch(callFn, messages, braveKey) {
       toolCalls.map(async tc => {
         let query = '';
         try { query = JSON.parse(tc.function.arguments).query || ''; } catch {}
-        const results = query ? await braveSearch(braveKey, query) : [];
+        const results = query ? await serperSearch(braveKey, query) : [];
         return {
           role: 'tool',
           tool_call_id: tc.id,
@@ -153,7 +153,7 @@ exports.handler = async (event) => {
 
   const groqKey  = process.env.GROQ_API_KEY;
   const orKey    = process.env.OPENROUTER_API_KEY;
-  const braveKey = process.env.BRAVE_API_KEY;
+  const braveKey = process.env.SERPER_API_KEY;
 
   if (!groqKey && !orKey) return {
     statusCode: 500,
@@ -196,7 +196,7 @@ exports.handler = async (event) => {
     return { statusCode: 429, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ error: 'Modelos de visión saturados. Intentá de nuevo. (' + lastError + ')' }) };
   }
 
-  // ── Texto: Groq primero (con web search si hay BRAVE_API_KEY) ──
+  // ── Texto: Groq primero (con web search si hay SERPER_API_KEY) ──
   if (groqKey) {
     for (const model of GROQ_MODELS) {
       let result;

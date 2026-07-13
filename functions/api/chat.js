@@ -40,7 +40,7 @@ const WEB_SEARCH_TOOL = {
   }
 };
 
-async function braveSearch(apiKey, query) {
+async function serperSearch(apiKey, query) {
   const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=6&search_lang=es&ui_lang=es-AR&country=AR`;
   const res  = await fetch(url, {
     headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey }
@@ -99,7 +99,7 @@ async function callWithSearch(callFn, messages, braveKey) {
       toolCalls.map(async tc => {
         let query = '';
         try { query = JSON.parse(tc.function.arguments).query || ''; } catch {}
-        const results = query ? await braveSearch(braveKey, query) : [];
+        const results = query ? await serperSearch(braveKey, query) : [];
         return { role: 'tool', tool_call_id: tc.id, name: 'web_search', content: formatSearchResults(results, query) };
       })
     );
@@ -122,7 +122,7 @@ export async function onRequestPost(context) {
 
   const groqKey  = context.env.GROQ_API_KEY;
   const orKey    = context.env.OPENROUTER_API_KEY;
-  const braveKey = context.env.BRAVE_API_KEY;
+  const braveKey = context.env.SERPER_API_KEY;
 
   if (!groqKey && !orKey) return jsonRes(500, { error: 'No hay ninguna API key configurada.' });
 
