@@ -519,7 +519,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama3-70b → mixtral-8x7b), con OpenRouter como respaldo automático. Tiene acceso real a internet vía Brave Search (configura <strong>SERPER_API_KEY</strong> en las variables de entorno — gratis en serper.dev). Para imágenes usa modelos de visión vía OpenRouter (Qwen-VL, Llama Vision).</div>
+      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama3-70b → mixtral-8x7b), con OpenRouter como respaldo automático. Tiene acceso real a internet vía Serper/Google (configura <strong>SERPER_API_KEY</strong> en las variables de entorno — gratis en serper.dev). Para imágenes usa modelos de visión vía OpenRouter (Qwen-VL, Llama Vision).</div>
     </div>
 
     <div class="modal-section">
@@ -1679,7 +1679,13 @@ realistic photo of a mountain climber ascending Aconcagua, dramatic snowy peaks,
 El sistema la genera automáticamente. Nunca incluyas personas reales identificables, contenido violento, sexual o inapropiado.
 
 ACCESO A INTERNET: Tenés acceso real a internet a través de la herramienta web_search.
-IMPORTANTE — cuando uses web_search, NO menciones que vas a buscar, NO muestres la query, NO digas "Estoy esperando los resultados", NO escribas "Resultados de la búsqueda:". Directamente presentá la respuesta con la información encontrada, como si ya la supieras, citando la fuente al final con "Fuente: [nombre] (URL)". Cuando el alumno pregunte sobre noticias recientes, información actualizada, eventos actuales, precios, o cualquier dato que pueda haber cambiado, USÁ la herramienta para buscarlo en lugar de inventar o admitir ignorancia. La herramienta devuelve resultados reales de Serper/Google. Citá siempre la fuente cuando uses información de la búsqueda.
+IMPORTANTE — cuando uses web_search, seguí estas reglas estrictamente:
+- NO escribas "voy a realizar una búsqueda" ni nada similar antes de buscar.
+- NO muestres la query de búsqueda en ningún formato (ni en bloques de código, ni en cursiva, ni en ningún otro).
+- NO escribas "Estoy esperando los resultados", "Resultados de la búsqueda:", ni frases similares.
+- Simplemente respondé con la información encontrada, de forma directa y natural.
+- Al final citá las fuentes específicas con nombre y URL real: "Fuente: Página 12 (pagina12.com.ar)" o similar.
+- Si los resultados no son de fuentes confiables (Infobae, Clarín, La Nación, TN), buscá en fuentes prioritarias antes de responder. Cuando el alumno pregunte sobre noticias recientes, información actualizada, eventos actuales, precios, o cualquier dato que pueda haber cambiado, USÁ la herramienta para buscarlo en lugar de inventar o admitir ignorancia. La herramienta devuelve resultados reales de Serper/Google. Citá siempre la fuente cuando uses información de la búsqueda.
 
 FUENTES PARA NOTICIAS ARGENTINAS — seguí este orden de preferencia:
 - PRIORITARIAS (alta confiabilidad): Chequeado (chequeado.com), CONICET Prensa (conicet.gov.ar), Télam (telam.com.ar), APF Digital (apfdigital.com.ar), Página 12 (pagina12.com.ar), El Destape (eldestapeweb.com), Río Negro (rionegro.com.ar), LM Neuquén (lmneuquen.com), Radio UNCo-CALF (radiounco.uncoma.edu.ar o radiocalf.com.ar), Educ.ar (educ.ar), Ministerio de Educación (argentina.gob.ar/educacion), OSINT/fuentes abiertas verificables.
@@ -1881,27 +1887,26 @@ function clearChat() {
 
 // ── Markdown ───────────────────────────────────────────
 function stripSearchProcess(text) {
-  // Elimina frases intermedias del proceso de búsqueda que el modelo a veces emite
-  const lines = text.split('
-');
+  const lines = text.split('\n');
   const filtered = lines.filter(line => {
     const l = line.trim().toLowerCase();
     if (l.includes('estoy esperando los resultado')) return false;
-    if (l.startsWith('resultados de la búsqueda:')) return false;
+    if (l.includes('esperando result')) return false;
+    if (l.startsWith('resultados de la b\u00fasqueda:')) return false;
     if (l.startsWith('resultados de la busqueda:')) return false;
-    if (l.match(/^voy a (realizar|hacer|efectuar) una búsqueda/i)) return false;
-    if (l.match(/^para obtener .* voy a /i)) return false;
+    if (l.startsWith('resultados de b\u00fasqueda')) return false;
+    if (/^voy a (realizar|hacer|efectuar|ejecutar) una b/.test(l)) return false;
+    if (/^para (obtener|conseguir|buscar).{0,40}voy a/.test(l)) return false;
+    if (/^(pity,?\s*)?para mantenerte actuali/.test(l)) return false;
+    if (/^realizando una b/.test(l)) return false;
+    if (/^buscando en internet/.test(l)) return false;
+    if (/^consultando (internet|la web|fuentes)/.test(l)) return false;
     return true;
   });
-  // Eliminar bloques de código de una sola línea que parecen ser la query de búsqueda
-  // (ej: `últimas noticias de Argentina hoy`)
-  return filtered.join('
-').replace(/`[^`
-]{5,80}`
-?/g, (m) => {
-    // Solo eliminar si la línea anterior/posterior sugiere contexto de búsqueda
-    return m; // conservar por defecto, el filtro de líneas arriba ya hace la mayor parte
-  });
+  return filtered.join('\n')
+    .replace(/^`[^`\n]{3,100}`$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function parseMarkdown(text) {
