@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -37,6 +37,45 @@
   --font:    'Inter', system-ui, -apple-system, sans-serif;
   --display: 'Fraunces', Georgia, serif;
 }
+
+/* ── Tema claro ── */
+[data-theme="light"] {
+  --bg:          #f0f2f8;
+  --surface:     #ffffff;
+  --surface-2:   #f5f6fb;
+  --surface-3:   #eaedf6;
+  --border:      #dde1f0;
+  --border-2:    #c8cde3;
+  --text:        #14192e;
+  --text-mid:    #4a5378;
+  --text-muted:  #8b93b4;
+  --accent:      #6355e8;
+  --accent-dim:  rgba(99,85,232,.10);
+  --teal:        #0ea5a0;
+  --teal-dim:    rgba(14,165,160,.10);
+  --green:       #18a05a;
+  --green-dim:   rgba(24,160,90,.10);
+  --amber:       #c97c10;
+  --amber-dim:   rgba(201,124,16,.10);
+  --red:         #d93636;
+  --red-dim:     rgba(217,54,54,.10);
+  --blue:        #2278e0;
+  --blue-dim:    rgba(34,120,224,.10);
+}
+[data-theme="light"] .aurora { opacity: .07; }
+[data-theme="light"] .aurora::before { opacity: .12; }
+[data-theme="light"] .aurora::after  { opacity: .09; }
+[data-theme="light"] .bubble.msg-wrap.user .bubble { background: var(--accent-dim); }
+[data-theme="light"] .msg-wrap.ai .bubble { box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+[data-theme="light"] .sidebar { box-shadow: 2px 0 12px rgba(0,0,0,.06); }
+
+/* Theme toggle button */
+.theme-toggle {
+  background: none; border: 1px solid var(--border); border-radius: 7px;
+  padding: 5px 9px; cursor: pointer; color: var(--text-muted); font-size: 15px;
+  line-height: 1; transition: all .15s; flex-shrink: 0;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
 html, body { height: 100%; overflow: hidden; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; position: relative; }
@@ -157,7 +196,228 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
 .empty-profile { font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0; line-height: 1.5; }
 
-/* Ghost btn */
+/* ── Panel Clima ── */
+.weather-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+  z-index: 180; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.weather-overlay.open { opacity: 1; pointer-events: auto; }
+.weather-panel {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  width: 700px; max-width: 96vw; max-height: 90vh; overflow-y: auto;
+  padding: 26px 28px; display: flex; flex-direction: column; gap: 18px;
+}
+.wp-header { display: flex; align-items: center; justify-content: space-between; }
+.wp-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.wp-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.wp-close:hover { color: var(--text); }
+.wp-location-row { display: flex; gap: 8px; align-items: center; }
+.wp-location-row input { flex: 1; }
+.wp-btn { background: var(--accent); border: none; border-radius: 8px; padding: 8px 16px; color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: opacity .15s; }
+.wp-btn:hover { opacity: .85; }
+.wp-btn:disabled { opacity: .5; cursor: default; }
+.wp-btn.secondary { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-mid); font-weight: 500; }
+.wp-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+.wp-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
+.wp-tab { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 5px 12px; font-size: 12px; color: var(--text-muted); cursor: pointer; font-family: var(--font); transition: all .15s; }
+.wp-tab:hover { color: var(--text); border-color: var(--text-muted); }
+.wp-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.wp-content { min-height: 200px; }
+.wp-section { display: none; }
+.wp-section.active { display: block; }
+
+/* Current weather card */
+.wp-now { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wp-now-main { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.wp-temp { font-size: 48px; font-weight: 700; color: var(--text); line-height: 1; }
+.wp-temp span { font-size: 22px; color: var(--text-muted); font-weight: 400; }
+.wp-desc { font-size: 14px; color: var(--text-mid); margin-top: 4px; }
+.wp-loc-label { font-size: 11px; color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; }
+.wp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wp-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; }
+.wp-stat-key { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
+.wp-stat-val { font-size: 16px; font-weight: 700; color: var(--teal); margin-top: 2px; }
+.wp-stat-val.amber { color: var(--amber); }
+.wp-stat-val.blue { color: var(--blue); }
+.wp-stat-val.green { color: var(--green); }
+
+/* Forecast */
+.wp-forecast { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+.wp-day { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 8px; text-align: center; }
+.wp-day-name { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.wp-day-icon { font-size: 22px; margin: 6px 0; }
+.wp-day-max { font-size: 15px; font-weight: 700; color: var(--amber); }
+.wp-day-min { font-size: 12px; color: var(--blue); }
+.wp-day-rain { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* Satellite / Radar images */
+.wp-imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wp-img-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.wp-img-label { font-size: 11px; color: var(--text-muted); padding: 8px 10px 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+.wp-img-card img { width: 100%; display: block; border-radius: 0 0 10px 10px; }
+.wp-img-card .wp-img-err { padding: 20px; font-size: 12px; color: var(--text-muted); text-align: center; }
+.wp-img-ts { font-size: 10px; color: var(--text-muted); padding: 0 10px 6px; }
+.wp-img-refresh { font-size: 10px; color: var(--accent); background: none; border: none; cursor: pointer; font-family: var(--font); padding: 0 10px 8px; text-decoration: underline; display: block; }
+.wp-img-refresh:hover { color: var(--teal); }
+
+/* AI analysis */
+.wp-ai-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.6; color: var(--text-mid); }
+.wp-ai-box.loading { color: var(--text-muted); font-style: italic; }
+.wp-ai-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wp-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.wp-error { color: var(--red); font-size: 12px; background: var(--red-dim); border: 1px solid var(--red); border-radius: 8px; padding: 10px 12px; display: none; }
+.wp-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 600px) {
+  .wp-now { grid-template-columns: 1fr; }
+  .wp-imgs { grid-template-columns: 1fr; }
+  .weather-panel { padding: 18px 14px; }
+}
+/* ── Panel de Recursos (YouTube + Wikipedia) ── */
+.res-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+  z-index: 180; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.res-overlay.open { opacity: 1; pointer-events: auto; }
+.res-panel {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  width: 740px; max-width: 97vw; max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.res-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.res-title { font-size: 15px; font-weight: 700; }
+.res-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.res-close:hover { color: var(--text); }
+.res-search-row { display: flex; gap: 8px; padding: 14px 22px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.res-search-row input { flex: 1; }
+.res-tabs { display: flex; gap: 6px; padding: 10px 22px 0; flex-shrink: 0; }
+.res-tab { background: none; border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; padding: 6px 16px; font-size: 12.5px; color: var(--text-muted); cursor: pointer; font-family: var(--font); transition: all .15s; }
+.res-tab:hover { color: var(--text); }
+.res-tab.active { background: var(--surface-2); border-color: var(--border-2); color: var(--text); font-weight: 600; }
+.res-content { flex: 1; overflow-y: auto; padding: 16px 22px; background: var(--surface-2); }
+.res-section { display: none; }
+.res-section.active { display: block; }
+.res-loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+.res-empty { text-align: center; padding: 36px 20px; color: var(--text-muted); font-size: 13px; }
+
+/* YouTube cards */
+.yt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.yt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color .15s, transform .15s; }
+.yt-card:hover { border-color: var(--red); transform: translateY(-2px); }
+.yt-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--surface-3); }
+.yt-thumb-placeholder { width: 100%; aspect-ratio: 16/9; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.yt-info { padding: 9px 10px; }
+.yt-title { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.yt-channel { font-size: 11px; color: var(--text-muted); }
+.yt-send-btn { width: 100%; background: none; border: none; border-top: 1px solid var(--border); padding: 6px; font-size: 11px; color: var(--accent); cursor: pointer; font-family: var(--font); transition: background .15s; }
+.yt-send-btn:hover { background: var(--accent-dim); }
+
+/* Wikipedia cards */
+.wiki-list { display: flex; flex-direction: column; gap: 10px; }
+.wiki-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; }
+.wiki-title { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.wiki-extract { font-size: 12.5px; color: var(--text-mid); line-height: 1.6; margin-bottom: 8px; }
+.wiki-actions { display: flex; gap: 8px; }
+.wiki-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 11px; font-size: 11.5px; color: var(--text-muted); cursor: pointer; font-family: var(--font); transition: all .15s; }
+.wiki-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.wiki-btn.primary { border-color: var(--accent); color: var(--accent); }
+.wiki-btn.primary:hover { background: var(--accent-dim); }
+
+/* ── Panel de Progreso Visual ── */
+.progress-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+  z-index: 180; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.progress-overlay.open { opacity: 1; pointer-events: auto; }
+.progress-panel {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  width: 640px; max-width: 97vw; max-height: 90vh; overflow-y: auto;
+  padding: 24px 26px; display: flex; flex-direction: column; gap: 20px;
+}
+.pp-header { display: flex; align-items: center; justify-content: space-between; }
+.pp-title { font-size: 16px; font-weight: 700; font-family: var(--display); }
+.pp-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+.pp-close:hover { color: var(--text); }
+
+/* Overview stats */
+.pp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.pp-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 13px 10px; text-align: center; }
+.pp-stat-val { font-size: 24px; font-weight: 800; color: var(--accent); font-family: var(--display); }
+.pp-stat-key { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; margin-top: 3px; }
+
+/* Radar chart */
+.pp-radar-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+.pp-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 12px; }
+
+/* Topic progress bars — enhanced */
+.pp-topics { display: flex; flex-direction: column; gap: 10px; }
+.pp-topic { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; }
+.pp-topic-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.pp-topic-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.pp-topic-badge { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+.pp-topic-badge.init  { background: var(--blue-dim);  color: var(--blue);  }
+.pp-topic-badge.prog  { background: var(--amber-dim); color: var(--amber); }
+.pp-topic-badge.adv   { background: var(--green-dim); color: var(--green); }
+.pp-bar-track { height: 7px; background: var(--surface-3); border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
+.pp-bar-fill  { height: 100%; border-radius: 4px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+.pp-topic-meta { font-size: 11px; color: var(--text-muted); }
+
+/* ── Panel de Historial de Sesiones ── */
+.history-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+  z-index: 180; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.history-overlay.open { opacity: 1; pointer-events: auto; }
+.history-panel {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  width: 560px; max-width: 96vw; max-height: 88vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.hp-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.hp-title { font-size: 15px; font-weight: 700; }
+.hp-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.hp-close:hover { color: var(--text); }
+.hp-list { overflow-y: auto; flex: 1; padding: 10px 12px; }
+.hp-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.hp-item {
+  border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 8px; transition: border-color .15s;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.hp-item:hover { border-color: var(--accent); }
+.hp-item-header { display: flex; align-items: center; justify-content: space-between; }
+.hp-item-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.hp-item-date { font-size: 11px; color: var(--text-muted); }
+.hp-item-meta { font-size: 11.5px; color: var(--text-muted); }
+.hp-item-preview { font-size: 12px; color: var(--text-mid); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-item-actions { display: flex; gap: 6px; margin-top: 4px; }
+.hp-btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; color: var(--text-muted); cursor: pointer; font-family: var(--font); transition: all .15s; }
+.hp-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.hp-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.hp-actions-bar { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Voz ── */
+.voice-btn {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px;
+  width: 34px; height: 34px; cursor: pointer; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: all .15s; font-size: 17px;
+}
+.voice-btn:hover { color: var(--accent); border-color: var(--accent); }
+.voice-btn.listening { color: var(--red); border-color: var(--red); background: var(--red-dim); animation: pulse-border .8s ease-in-out infinite; }
+.voice-btn.speaking  { color: var(--teal); border-color: var(--teal); background: var(--teal-dim); }
+@keyframes pulse-border { 0%,100%{box-shadow:0 0 0 0 rgba(255,80,80,.4)} 50%{box-shadow:0 0 0 5px rgba(255,80,80,0)} }
+
+/* ── Botones header extra ── */
+.icon-btn.export { border-color: var(--teal); color: var(--teal); }
+.icon-btn.export:hover { background: var(--teal-dim); }
+.icon-btn.history-btn { border-color: var(--blue); color: var(--blue); }
+.icon-btn.history-btn:hover { background: rgba(59,158,255,.12); }
+
 .ghost-btn { width: 100%; background: none; border: 1px solid var(--border); border-radius: 7px; padding: 7px; cursor: pointer; font-size: 11.5px; color: var(--text-muted); font-family: var(--font); transition: all .15s; margin-top: 6px; }
 .ghost-btn:hover { border-color: var(--red); color: var(--red); }
 .ghost-btn.safe:hover { border-color: var(--accent); color: var(--accent); }
@@ -342,8 +602,8 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .toast.show { opacity: 1; }
 
 @media (max-width: 640px) {
-  :root { --sidebar-w: 280px; }
-  .bubble { max-width: 92%; }
+  :root { --sidebar-w: 290px; }
+  .bubble { max-width: 94%; }
 
   /* Sidebar se oculta fuera de pantalla por defecto en mobile */
   .sidebar {
@@ -361,15 +621,25 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   /* Botón hamburguesa */
   .hamburger { display: flex !important; }
 
-  /* Chat ocupa todo el ancho */
-  .chat-header { padding: 10px 14px; }
-  .head-actions { gap: 5px; }
+  /* Header compacto */
+  .chat-header { padding: 10px 12px; gap: 6px; }
+  .head-info { min-width: 0; flex: 1; }
+  .head-mode { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .head-subject { font-size: 10.5px; }
+
+  /* Ocultar botones menos prioritarios en mobile, mostrar solo los esenciales */
+  .icon-btn.history-btn,
+  .icon-btn.export { display: none; }
+  .icon-btn.weather-btn { display: flex !important; } /* Clima siempre visible */
   .icon-btn { padding: 7px 9px; font-size: 11.5px; }
+  .head-actions { gap: 5px; }
 
   /* Input más grande y táctil */
-  .input-area { padding: 10px 12px 14px; }
+  .input-area { padding: 10px 12px 16px; }
   #user-input { font-size: 16px; } /* evita zoom automático de iOS */
-  .send-btn { width: 40px; height: 40px; border-radius: 9px; }
+  .send-btn { width: 42px; height: 42px; border-radius: 9px; }
+  .voice-btn { width: 42px; height: 42px; }
+  .attach-img-btn { width: 42px; height: 42px; }
 
   /* Modales a pantalla completa */
   .modal-overlay { align-items: flex-end; padding: 0; }
@@ -377,6 +647,16 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     width: 100% !important; max-width: 100% !important;
     border-radius: 18px 18px 0 0 !important;
     max-height: 92vh; padding: 20px 16px;
+  }
+
+  /* Paneles laterales a pantalla completa */
+  .weather-panel, .history-panel, .res-panel, .progress-panel {
+    width: 100% !important; max-width: 100% !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 92vh;
+  }
+  .weather-overlay, .history-overlay, .res-overlay, .progress-overlay {
+    align-items: flex-end;
   }
 
   /* Profile gate centrado y sin borde extra */
@@ -396,6 +676,17 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
   /* Verdict cards a ancho completo */
   .verdict-card { border-radius: 10px; }
+
+  /* Progreso: stats en 2 columnas en mobile */
+  .pp-stats { grid-template-columns: repeat(2, 1fr); }
+
+  /* YouTube: una columna en mobile */
+  .yt-grid { grid-template-columns: 1fr; }
+
+  /* Recursos: tabs más compactas */
+  .res-tab { padding: 5px 11px; font-size: 12px; }
+  .res-search-row { padding: 10px 14px; }
+  .res-content { padding: 12px 14px; }
 }
 
 /* Pantallas muy pequeñas */
@@ -403,6 +694,8 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .head-mode { font-size: 12px; }
   .icon-btn { padding: 6px 7px; font-size: 11px; }
   .mode-btn { font-size: 10.5px; }
+  .pp-stat-val { font-size: 20px; }
+}
 }
 
 /* ── Mapa de conocimiento: lista lateral de temas ── */
@@ -420,7 +713,6 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .shazam-drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px;
   text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
 .shazam-drop:hover, .shazam-drop.drag-over { border-color: var(--accent); background: rgba(124,106,247,.07); }
-.shazam-drop svg { width: 36px; height: 36px; color: var(--accent); margin-bottom: 8px; }
 .shazam-result { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
   padding: 18px; display: flex; gap: 14px; align-items: flex-start; }
 .shazam-result-icon { font-size: 36px; flex-shrink: 0; }
@@ -434,12 +726,35 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .shazam-confidence.high { background: rgba(62,207,126,.15); color: var(--green); }
 .shazam-confidence.mid  { background: rgba(245,166,35,.15);  color: var(--amber); }
 
-/* ── Indicador de búsqueda web en burbujas ── */
-.web-search-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
-  font-weight: 600; color: var(--text-muted); background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: 20px; padding: 2px 8px;
-  margin-bottom: 6px; letter-spacing: .02em; }
-.web-search-tag::before { content: "🌐"; }
+/* ── Instructivo / Ayuda ── */
+.help-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:16px; }
+.help-overlay.hidden { display:none; }
+.help-modal { background:var(--surface-1); border:1px solid var(--border); border-radius:16px;
+  width:100%; max-width:640px; max-height:90vh; overflow-y:auto; padding:28px 28px 20px; }
+.help-modal h2 { font-family:var(--display); font-size:22px; color:var(--accent);
+  margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.help-modal .help-sub { font-size:13px; color:var(--text-muted); margin-bottom:20px; }
+.help-section { margin-bottom:18px; }
+.help-section h3 { font-size:13px; font-weight:700; color:var(--text); text-transform:uppercase;
+  letter-spacing:.08em; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+.help-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:8px; }
+.help-icon { font-size:18px; flex-shrink:0; width:28px; text-align:center; margin-top:1px; }
+.help-text { font-size:13px; color:var(--text-mid); line-height:1.55; }
+.help-text strong { color:var(--text); }
+.help-footer { display:flex; align-items:center; justify-content:space-between;
+  margin-top:20px; padding-top:16px; border-top:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+.help-check { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-muted); cursor:pointer; }
+.help-check input { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+.help-btn-close { background:var(--accent); color:#fff; border:none; border-radius:8px;
+  padding:9px 22px; font-size:13px; font-weight:600; cursor:pointer; }
+.help-btn-close:hover { opacity:.88; }
+.icon-btn.help-btn { border-color:var(--text-muted); color:var(--text-muted); }
+.icon-btn.help-btn:hover { border-color:var(--accent); color:var(--accent); }
+@media (max-width:640px) {
+  .help-modal { padding:20px 16px 16px; }
+  .help-modal h2 { font-size:18px; }
+}
 </style>
 </head>
 <body>
@@ -519,7 +834,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama3-70b → mixtral-8x7b), con OpenRouter como respaldo automático. Tiene acceso real a internet vía Serper/Google (configura <strong>SERPER_API_KEY</strong> en las variables de entorno — gratis en serper.dev). Para imágenes usa modelos de visión vía OpenRouter (Qwen-VL, Llama Vision).</div>
+      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama-3.1-70b → gemma2-9b-it), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (Qwen-VL, Llama Vision). No requiere configuración adicional.</div>
     </div>
 
     <div class="modal-section">
@@ -666,6 +981,56 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 </div>
 
 
+
+<!-- ── Modal Instructivo ── -->
+<div class="help-overlay hidden" id="help-overlay">
+  <div class="help-modal">
+    <h2>✨ Bienvenido/a a Eterneura</h2>
+    <p class="help-sub">Tu asistente de IA educativa · Leé esto una vez y ya sabés todo lo que necesitás.</p>
+
+    <div class="help-section">
+      <h3>🧠 Modos pedagógicos</h3>
+      <div class="help-row"><div class="help-icon">🔍</div><div class="help-text"><strong>Socrático</strong> — Te hace preguntas para que llegues a las respuestas vos mismo. Ideal para pensar y razonar.</div></div>
+      <div class="help-row"><div class="help-icon">📖</div><div class="help-text"><strong>Directo</strong> — Explica los temas en forma clara y completa. Para aprender contenido nuevo.</div></div>
+      <div class="help-row"><div class="help-icon">✏️</div><div class="help-text"><strong>Ejercicios</strong> — Genera actividades y problemas para practicar.</div></div>
+      <div class="help-row"><div class="help-icon">📊</div><div class="help-text"><strong>Evaluador</strong> — Te corrige y califica con devolución detallada.</div></div>
+      <div class="help-row"><div class="help-icon">🔧</div><div class="help-text"><strong>Técnico</strong> — Para temas de ciencias, tecnología, código y análisis.</div></div>
+      <div class="help-row"><div class="help-icon">🛡️</div><div class="help-text"><strong>Verificador</strong> — Chequea si una noticia o afirmación es verdadera o falsa usando fuentes confiables.</div></div>
+      <div class="help-row"><div class="help-icon">💬</div><div class="help-text"><strong>Conversación libre</strong> — Sin rol fijo. Para consultas generales.</div></div>
+    </div>
+
+    <div class="help-section">
+      <h3>⚡ Funciones especiales</h3>
+      <div class="help-row"><div class="help-icon">🌐</div><div class="help-text"><strong>Acceso a internet</strong> — Eterneura puede buscar noticias y datos actuales en tiempo real.</div></div>
+      <div class="help-row"><div class="help-icon">🖼️</div><div class="help-text"><strong>Analizar imágenes</strong> — Adjuntá fotos de ejercicios, diagramas o planos usando el ícono 📷 en el chat.</div></div>
+      <div class="help-row"><div class="help-icon">🎵</div><div class="help-text"><strong>Identificar canciones</strong> — Usá el ícono 🎵 en el chat para subir un audio y saber qué canción es (como Shazam).</div></div>
+      <div class="help-row"><div class="help-icon">🌦</div><div class="help-text"><strong>Clima</strong> — Botón en la barra superior. Buscá cualquier ciudad para ver el pronóstico de 7 días.</div></div>
+      <div class="help-row"><div class="help-icon">📄</div><div class="help-text"><strong>Subir apuntes</strong> — Arrastrá un PDF, TXT o MD al panel izquierdo para que Eterneura los use como base de conocimiento.</div></div>
+      <div class="help-row"><div class="help-icon">📐</div><div class="help-text"><strong>Diagramas SVG</strong> — Pedile "mostrame un diagrama de..." y genera visualizaciones interactivas.</div></div>
+    </div>
+
+    <div class="help-section">
+      <h3>📝 Panel Docente</h3>
+      <div class="help-row"><div class="help-icon">⚙️</div><div class="help-text">Accedé desde el botón <strong>Docente</strong> (arriba a la derecha). Podés configurar el nombre de la IA, la materia, instrucciones especiales, y generar <strong>exámenes descargables</strong> con el Evaluador Académico.</div></div>
+    </div>
+
+    <div class="help-section">
+      <h3>💡 Consejos</h3>
+      <div class="help-row"><div class="help-icon">🗺️</div><div class="help-text">El <strong>Mapa de conocimiento</strong> (sidebar izquierdo) muestra todos los temas que estudiaste y tu nivel de dominio en cada uno.</div></div>
+      <div class="help-row"><div class="help-icon">👤</div><div class="help-text">Podés crear <strong>múltiples perfiles</strong> haciendo clic en tu nombre arriba a la izquierda.</div></div>
+      <div class="help-row"><div class="help-icon">🔍</div><div class="help-text">Para verificar una noticia falsa, usá el modo <strong>Verificador</strong> y escribí la afirmación que querés chequear.</div></div>
+    </div>
+
+    <div class="help-footer">
+      <label class="help-check">
+        <input type="checkbox" id="help-no-show" onchange="helpToggleShow(this)"/>
+        No mostrar al iniciar
+      </label>
+      <button class="help-btn-close" onclick="closeHelp()">¡Entendido, empecemos!</button>
+    </div>
+  </div>
+</div>
+
 <!-- Shazam modal -->
 <div class="modal-overlay" id="shazam-modal">
   <div class="modal" style="width:520px;max-width:97vw">
@@ -676,38 +1041,33 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       </div>
       <button class="modal-close" onclick="closeShazamModal()">×</button>
     </div>
-
     <div class="modal-section">
       <div class="shazam-drop" id="shazam-drop"
            onclick="document.getElementById('shazam-audio-input').click()"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="onDropShazam(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 8px;width:36px;height:36px;color:var(--accent)">
           <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
         </svg>
         <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Arrastrá o hacé clic para subir audio</div>
-        <div style="font-size:11px;color:var(--text-muted)">MP3, WAV, M4A, OGG, WebM — hasta 10 MB · fragmentos de 5–30 seg funcionan mejor</div>
+        <div style="font-size:11px;color:var(--text-muted)">MP3, WAV, M4A, OGG — hasta 10 MB · fragmentos de 5–30 seg</div>
       </div>
       <input type="file" id="shazam-audio-input" accept="audio/*" style="display:none" onchange="handleShazamFile(this.files[0])"/>
     </div>
-
     <div id="shazam-loading" style="display:none;text-align:center;padding:20px 0">
       <div class="typing-indicator" style="display:inline-flex;margin-bottom:8px"><span></span><span></span><span></span></div>
       <div style="font-size:13px;color:var(--text-muted)">Identificando canción…</div>
     </div>
-
     <div id="shazam-result-wrap" style="display:none" class="modal-section">
       <div id="shazam-result-inner"></div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn-secondary" style="font-size:12px" onclick="shazamSearchYouTube()">▶ Buscar en YouTube</button>
-        <button class="btn-secondary" style="font-size:12px" onclick="shazamSearchSpotify()">🎧 Buscar en Spotify</button>
-        <button class="btn-secondary" style="font-size:12px" onclick="shazamAskAI()">💬 Preguntarle a la IA sobre esta canción</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="shazamSearchYouTube()">▶ YouTube</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="shazamSearchSpotify()">🎧 Spotify</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="shazamAskAI()">💬 Preguntarle a la IA</button>
       </div>
     </div>
-
     <div id="shazam-err" style="display:none;color:var(--red);font-size:13px;padding:8px 0"></div>
-
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeShazamModal()">Cerrar</button>
       <button class="btn-secondary" onclick="resetShazam()">🔄 Identificar otra</button>
@@ -723,7 +1083,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   <aside class="sidebar">
     <div class="sb-logo">
       <div class="logo-name" id="ai-name-display">Etern<span>eura</span></div>
-      <div class="logo-tag">IA Educativa · v4.5</div>
+      <div class="logo-tag">IA Educativa · v4.7</div>
     </div>
 
     <div class="sb-profile-chip" id="sb-profile-chip"></div>
@@ -739,6 +1099,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
           <button class="mode-btn" data-mode="evaluator" onclick="setMode('evaluator',this)"><span class="mode-icon">📊</span>Evaluador</button>
           <button class="mode-btn" data-mode="technical" onclick="setMode('technical',this)"><span class="mode-icon">📐</span>Técnico</button>
           <button class="mode-btn" data-mode="verifier" onclick="setMode('verifier',this)"><span class="mode-icon">🛡️</span>Verificador</button>
+          <button class="mode-btn" data-mode="free" onclick="setMode('free',this)" style="grid-column:1/-1"><span class="mode-icon">💬</span>Conversación Libre</button>
         </div>
       </div>
 
@@ -775,7 +1136,9 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
         <div class="topic-list" id="topic-list">
           <div class="empty-profile">Aún no trabajaste ningún tema. Definí un tema y empezá a estudiar.</div>
         </div>
+        <button class="ghost-btn action" onclick="openProgressPanel()" style="margin-top:4px">📊 Ver progreso detallado</button>
         <button class="ghost-btn safe" onclick="openKnowledgeMap()">🗺️ Ver mapa de conocimiento</button>
+        <button class="ghost-btn safe" onclick="generateConceptMap()" style="margin-top:4px">🧠 Generar mapa conceptual</button>
         <button class="ghost-btn safe" onclick="openExamModal()" style="margin-top:4px">📝 Evaluador académico</button>
         <button class="ghost-btn action" onclick="requestSessionSummary()">📋 Resumen de sesión</button>
         <button class="ghost-btn" onclick="clearStudentMemory()">Borrar perfil cognitivo</button>
@@ -794,7 +1157,13 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
         <div class="head-subject" id="head-subject">Definí un tema en el panel izquierdo</div>
       </div>
       <div class="head-actions">
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">🌙</button>
+        <button class="icon-btn history-btn" onclick="openHistoryPanel()" title="Historial de sesiones">📋 Historial</button>
+        <button class="icon-btn export" onclick="exportChatPDF()" title="Exportar chat como PDF">⬇ PDF</button>
+        <button class="icon-btn" onclick="openResourcesPanel()" title="Buscar videos y artículos relacionados">🔎 Recursos</button>
+        <button class="icon-btn help-btn" onclick="openHelp()" title="Ayuda / Instructivo">❓ Ayuda</button>
         <button class="icon-btn" onclick="clearChat()">🗑 Limpiar</button>
+        <button class="icon-btn weather-btn" onclick="openWeatherPanel()" title="Panel de pronóstico del tiempo">🌦 Clima</button>
         <button class="icon-btn teacher" onclick="openTeacherPanel()">⚙️ Docente</button>
       </div>
     </div>
@@ -819,17 +1188,17 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
       <div class="doc-hint" id="doc-hint"></div>
       <div class="image-preview-row" id="image-preview-row"></div>
       <div class="input-wrap">
+        <button class="attach-img-btn" onclick="openShazamModal()" title="Identificar canción" style="color:var(--accent)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+        </button>
         <button class="attach-img-btn" id="attach-img-btn" onclick="document.getElementById('image-input').click()" title="Adjuntar imagen (plano, diagrama, foto de ejercicio…)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
         </button>
         <input type="file" id="image-input" accept="image/png,image/jpeg,image/webp" multiple style="display:none" onchange="handleImageFiles(this.files)"/>
-        <button class="attach-img-btn" onclick="openShazamModal()" title="Identificar canción (Shazam)" style="color:var(--accent)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-          </svg>
-        </button>
         <textarea id="user-input" rows="1" placeholder="Escribí tu mensaje, o adjuntá una imagen (plano, diagrama, ejercicio)…"
           onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
         <button class="send-btn" id="send-btn" onclick="sendMessage()">
@@ -837,14 +1206,171 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
             <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
         </button>
+        <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Dictado por voz">🎤</button>
+        <button class="voice-btn" id="tts-toggle-btn" onclick="toggleTTS()" title="Voz de respuesta: OFF (clic para activar)" style="font-size:15px">🔇</button>
       </div>
     </div>
   </main>
 </div>
 
+<!-- ══ Panel Recursos (YouTube + Wikipedia) ════════════ -->
+<div class="res-overlay" id="res-overlay" onclick="if(event.target===this)closeResourcesPanel()">
+<div class="res-panel">
+  <div class="res-header">
+    <div class="res-title">🔎 Recursos relacionados</div>
+    <button class="res-close" onclick="closeResourcesPanel()">✕</button>
+  </div>
+  <div class="res-search-row">
+    <input class="field-input" type="text" id="res-search-input" placeholder="Tema a buscar (o usá el tema de la sesión actual)…" onkeydown="if(event.key==='Enter')searchResources()"/>
+    <button class="wp-btn" onclick="searchResources()">Buscar</button>
+    <button class="wp-btn secondary" onclick="searchResourcesFromSession()" title="Usar tema de la sesión">📚 Sesión</button>
+  </div>
+  <div class="res-tabs">
+    <button class="res-tab active" data-rtab="res-yt" onclick="switchResTab(this)">▶ YouTube</button>
+    <button class="res-tab" data-rtab="res-wiki" onclick="switchResTab(this)">📖 Wikipedia</button>
+  </div>
+  <div class="res-content">
+    <div class="res-section active" id="res-yt">
+      <div class="res-empty" id="res-yt-empty">Buscá un tema para ver videos relacionados.</div>
+      <div class="yt-grid" id="yt-grid" style="display:none"></div>
+    </div>
+    <div class="res-section" id="res-wiki">
+      <div class="res-empty" id="res-wiki-empty">Buscá un tema para ver artículos de Wikipedia.</div>
+      <div class="wiki-list" id="wiki-list" style="display:none"></div>
+    </div>
+  </div>
+</div>
+</div>
+<!-- ══ /Panel Recursos ══════════════════════════════════ -->
+
+<!-- ══ Panel Progreso Visual ═══════════════════════════ -->
+<div class="progress-overlay" id="progress-overlay" onclick="if(event.target===this)closeProgressPanel()">
+<div class="progress-panel">
+  <div class="pp-header">
+    <div class="pp-title">📊 Mi progreso</div>
+    <button class="pp-close" onclick="closeProgressPanel()">✕</button>
+  </div>
+  <div class="pp-stats" id="pp-stats-grid">
+    <div class="pp-stat"><div class="pp-stat-val" id="pp-sessions">0</div><div class="pp-stat-key">Sesiones</div></div>
+    <div class="pp-stat"><div class="pp-stat-val" id="pp-messages">0</div><div class="pp-stat-key">Mensajes</div></div>
+    <div class="pp-stat"><div class="pp-stat-val" id="pp-topics">0</div><div class="pp-stat-key">Temas</div></div>
+    <div class="pp-stat"><div class="pp-stat-val" id="pp-avg">0%</div><div class="pp-stat-key">Dominio promedio</div></div>
+  </div>
+  <div class="pp-radar-wrap">
+    <div class="pp-section-title">Radar de conocimiento</div>
+    <div id="pp-radar-canvas" style="display:flex;justify-content:center"></div>
+  </div>
+  <div>
+    <div class="pp-section-title" style="margin-bottom:10px">Temas trabajados</div>
+    <div class="pp-topics" id="pp-topics-list"></div>
+  </div>
+</div>
+</div>
+<!-- ══ /Panel Progreso ══════════════════════════════════ -->
+
+<!-- ══ Panel Historial ══════════════════════════════════ -->
+<div class="history-overlay" id="history-overlay" onclick="if(event.target===this)closeHistoryPanel()">
+<div class="history-panel">
+  <div class="hp-header">
+    <div class="hp-title">📋 Historial de sesiones</div>
+    <button class="hp-close" onclick="closeHistoryPanel()">✕</button>
+  </div>
+  <div class="hp-list" id="hp-list"></div>
+  <div class="hp-actions-bar">
+    <button class="hp-btn" onclick="saveCurrentSession()">💾 Guardar sesión actual</button>
+    <button class="hp-btn danger" onclick="clearAllSessions()">🗑 Borrar todo</button>
+  </div>
+</div>
+</div>
+<!-- ══ /Panel Historial ══════════════════════════════════ -->
+
+<!-- ══ Panel Clima ══════════════════════════════════════ -->
+<div class="weather-overlay" id="weather-overlay" onclick="if(event.target===this)closeWeatherPanel()">
+<div class="weather-panel">
+  <div class="wp-header">
+    <div class="wp-title">🌦 Pronóstico del tiempo</div>
+    <button class="wp-close" onclick="closeWeatherPanel()">✕</button>
+  </div>
+
+  <div class="wp-location-row">
+    <input class="field-input" type="text" id="wp-loc-input" placeholder="Ciudad (ej: Buenos Aires, Córdoba, Mendoza…)" onkeydown="if(event.key==='Enter')fetchWeather()"/>
+    <button class="wp-btn" id="wp-fetch-btn" onclick="fetchWeather()">Buscar</button>
+    <button class="wp-btn secondary" onclick="fetchWeatherGeo()" title="Usar mi ubicación">📍</button>
+  </div>
+  <div class="wp-error" id="wp-error"></div>
+
+  <div class="wp-tabs" id="wp-tabs" style="display:none">
+    <button class="wp-tab active" data-tab="wp-now-sec" onclick="switchWpTab(this)">🌡 Ahora</button>
+    <button class="wp-tab" data-tab="wp-forecast-sec" onclick="switchWpTab(this)">📅 7 días</button>
+    <button class="wp-tab" data-tab="wp-satellite-sec" onclick="switchWpTab(this)">🛰 Satélite & Radar</button>
+    <button class="wp-tab" data-tab="wp-ai-sec" onclick="switchWpTab(this)">🤖 Análisis IA</button>
+  </div>
+
+  <div class="wp-content" id="wp-content" style="display:none">
+
+    <!-- Ahora -->
+    <div class="wp-section active" id="wp-now-sec">
+      <div class="wp-now">
+        <div class="wp-now-main">
+          <div class="wp-loc-label" id="wp-loc-label">—</div>
+          <div class="wp-temp" id="wp-temp">—<span>°C</span></div>
+          <div class="wp-desc" id="wp-desc">—</div>
+        </div>
+        <div class="wp-grid">
+          <div class="wp-stat"><div class="wp-stat-key">Sensación</div><div class="wp-stat-val amber" id="wp-feel">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Humedad</div><div class="wp-stat-val blue" id="wp-hum">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Viento</div><div class="wp-stat-val green" id="wp-wind">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Lluvia 1h</div><div class="wp-stat-val blue" id="wp-rain1h">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Presión</div><div class="wp-stat-val" id="wp-press">—</div></div>
+          <div class="wp-stat"><div class="wp-stat-key">Índice UV</div><div class="wp-stat-val amber" id="wp-uv">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 días -->
+    <div class="wp-section" id="wp-forecast-sec">
+      <div class="wp-forecast" id="wp-forecast-grid"></div>
+    </div>
+
+    <!-- Satélite & Radar -->
+    <div class="wp-section" id="wp-satellite-sec">
+      <div class="wp-hint" style="margin-bottom:12px">
+        Imágenes actualizadas del <strong>Servicio Meteorológico Nacional (SMN)</strong> y GOES-16. Se refrescan cada vez que abrís esta pestaña.
+      </div>
+      <div class="wp-imgs" id="wp-sat-grid"></div>
+    </div>
+
+    <!-- Análisis IA -->
+    <div class="wp-section" id="wp-ai-sec">
+      <div class="wp-hint" style="margin-bottom:12px">
+        La IA analiza los datos meteorológicos actuales y da un pronóstico en lenguaje natural. También puede analizar las imágenes de satélite y radar vía visión.
+      </div>
+      <div class="wp-ai-actions" style="margin-bottom:12px">
+        <button class="wp-btn" onclick="analyzeWeatherText()">🤖 Analizar condiciones actuales</button>
+        <button class="wp-btn secondary" onclick="analyzeWeatherImages()">🛰 Analizar satélite + radar</button>
+      </div>
+      <div class="wp-ai-box" id="wp-ai-box">Buscá una ciudad y presioná un botón para que la IA analice las condiciones meteorológicas.</div>
+    </div>
+
+  </div>
+</div>
+</div>
+<!-- ══ /Panel Clima ══════════════════════════════════════ -->
+
 <script>
 if (typeof pdfjsLib !== 'undefined')
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Utilidades de contraseña (SHA-256 vía Web Crypto) ──
+async function hashPwd(plain) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function checkPwdMatch(plain, stored) {
+  // Soporta contraseñas viejas en texto plano (migración transparente)
+  if (!stored.startsWith('sha256:')) return plain === stored;
+  return ('sha256:' + await hashPwd(plain)) === stored;
+}
 
 // ── Constants ──────────────────────────────────────────
 const MAX_HISTORY     = 14;
@@ -863,7 +1389,8 @@ const MODE_LABELS = {
   exercises: 'Modo Ejercicios',
   evaluator: 'Modo Evaluador',
   technical: 'Modo Análisis Técnico',
-  verifier:  'Modo Verificador de Contenido'
+  verifier:  'Modo Verificador de Contenido',
+  free:      'Conversación Libre'
 };
 
 const MODE_PROMPTS = {
@@ -904,7 +1431,17 @@ VEREDICTO: NO VERIFICABLE
 
 Luego desarrollás el análisis con secciones claras. Al final, SIEMPRE incluís una sección "Cómo verificar" con al menos 2 fuentes confiables apropiadas para el tema (Chequeado.com para Argentina, AFP Factual, Google Fact Check, Snopes, PubMed para temas médicos, CONICET para ciencia argentina, etc.).
 
-PRINCIPIO EDUCATIVO: el objetivo no es solo decir "esto es falso" sino enseñar al usuario a detectarlo por sí mismo la próxima vez. Explicá el razonamiento, no solo la conclusión.`
+PRINCIPIO EDUCATIVO: el objetivo no es solo decir "esto es falso" sino enseñar al usuario a detectarlo por sí mismo la próxima vez. Explicá el razonamiento, no solo la conclusión.`,
+  free:
+    `Sos Eterneura en modo Conversación Libre. Respondés cualquier pregunta con honestidad, claridad y criterio: cultura general, ciencia, historia, tecnología, filosofía, consejos, charla, etc.
+
+IMPORTANTE — información en tiempo real:
+- Tenés acceso real a internet a través de la herramienta web_search. Usala cuando el alumno pregunte sobre noticias recientes, eventos actuales, precios, datos que puedan haber cambiado, o para verificar información.
+- Si te preguntan algo que requiere datos en tiempo real, sé DIRECTO: decí claramente que no tenés esa información actualizada, explicá brevemente por qué, y sugerí dónde encontrarla (sitio oficial, Google, app específica). No rodees la respuesta con listas de alternativas genéricas.
+- Ejemplo correcto: "No tengo acceso a datos en tiempo real, así que no puedo decirte cuándo juega Argentina. Para eso lo más rápido es buscar en Google 'próximo partido Argentina' o entrar a AFA.com.ar."
+- Ejemplo incorrecto: listar cinco fuentes genéricas y tres preguntas de seguimiento.
+
+Para todo lo demás: respondés directamente, con confianza, en español rioplatense (vos, ustedes). Sos cálido, directo y genuinamente útil. Cuando el tema da para un estudio más profundo, podés sugerirlo, pero sin forzarlo.`
 };
 
 // ── State ──────────────────────────────────────────────
@@ -1058,7 +1595,9 @@ function resetChatToWelcome() {
         <button class="starter" onclick="sendMessage('Explicame el tema desde cero')">Desde cero</button>
         <button class="starter" onclick="sendMessage('Quiero practicar con ejercicios')">Quiero practicar</button>
         <button class="starter" onclick="sendMessage('Evaluame sobre lo que sé')">Evaluame</button>
-        <button class="starter" onclick="sendMessage('Mostrame un diagrama de este tema')">📐 Mostrame un diagrama</button>
+        <button class="starter" onclick="sendMessage('Mostrame un diagrama de este tema')">📐 Diagrama</button>
+        <button class="starter" onclick="generateConceptMap()">🧠 Mapa conceptual</button>
+        <button class="starter" onclick="openResourcesPanel()">🔎 Buscar recursos</button>
       </div>
     </div>`;
 }
@@ -1096,8 +1635,10 @@ function openTeacherPanel() {
   setTimeout(() => document.getElementById('pwd-input').focus(), 100);
 }
 
-function checkPwd() {
-  if (document.getElementById('pwd-input').value === teacherConfig.password) {
+async function checkPwd() {
+  const val = document.getElementById('pwd-input').value;
+  const ok  = await checkPwdMatch(val, teacherConfig.password);
+  if (ok) {
     closePwdGate();
     openTeacherModal();
   } else {
@@ -1158,11 +1699,11 @@ function renderStudentsList() {
   }).join('');
 }
 
-function changePwd() {
+async function changePwd() {
   const p = document.getElementById('cfg-pwd').value.trim();
   if (!p) { showToast('Escribí la nueva contraseña'); return; }
   if (p.length < 4) { showToast('Mínimo 4 caracteres'); return; }
-  teacherConfig.password = p;
+  teacherConfig.password = 'sha256:' + await hashPwd(p);
   document.getElementById('cfg-pwd').value = '';
   showToast('🔑 Contraseña cambiada — guardá la configuración');
 }
@@ -1678,20 +2219,32 @@ realistic photo of a mountain climber ascending Aconcagua, dramatic snowy peaks,
 \`\`\`
 El sistema la genera automáticamente. Nunca incluyas personas reales identificables, contenido violento, sexual o inapropiado.
 
+PANEL DE CLIMA: Eterneura tiene un panel de pronóstico del tiempo integrado (botón 🌦 Clima en la barra superior). Cuando alguien pregunte por el clima, temperatura, lluvia, pronóstico o tiempo meteorológico en cualquier ciudad, NO respondas por el chat — indicale al alumno que use el botón 🌦 Clima en la barra superior, donde puede buscar cualquier ciudad y ver el pronóstico de 7 días. El panel usa Open-Meteo y es gratuito y preciso. Ejemplo de respuesta: "Para ver el clima actual y el pronóstico de Neuquén, usá el botón 🌦 Clima en la barra de arriba — podés buscar cualquier ciudad."
+
 ACCESO A INTERNET: Tenés acceso real a internet a través de la herramienta web_search.
+FECHA ACTUAL: Hoy es julio de 2026. Cuando busques noticias, siempre incluí el año actual en la query (ej: "noticias Argentina julio 2026") para obtener resultados recientes. Si los resultados que encontrás son de 2024 o anteriores, decilo explícitamente: "No encontré noticias recientes sobre este tema — los resultados más actuales que tengo son de [fecha]." NUNCA presentes noticias viejas como si fueran actuales.
+
 IMPORTANTE — cuando uses web_search, seguí estas reglas estrictamente:
 - NO escribas "voy a realizar una búsqueda" ni nada similar antes de buscar.
-- NO muestres la query de búsqueda en ningún formato (ni en bloques de código, ni en cursiva, ni en ningún otro).
+- NO muestres la query de búsqueda en ningún formato.
 - NO escribas "Estoy esperando los resultados", "Resultados de la búsqueda:", ni frases similares.
 - Simplemente respondé con la información encontrada, de forma directa y natural.
-- Al final citá las fuentes específicas con nombre y URL real: "Fuente: Página 12 (pagina12.com.ar)" o similar.
-- Si los resultados no son de fuentes confiables (Infobae, Clarín, La Nación, TN), buscá en fuentes prioritarias antes de responder. Cuando el alumno pregunte sobre noticias recientes, información actualizada, eventos actuales, precios, o cualquier dato que pueda haber cambiado, USÁ la herramienta para buscarlo en lugar de inventar o admitir ignorancia. La herramienta devuelve resultados reales de Serper/Google. Citá siempre la fuente cuando uses información de la búsqueda.
+- Al final citá las fuentes específicas con nombre y URL real.
+- Si los resultados son de Infobae, Clarín, La Nación o TN como única fuente, buscá en fuentes prioritarias antes de responder.
 
 FUENTES PARA NOTICIAS ARGENTINAS — seguí este orden de preferencia:
-- PRIORITARIAS (alta confiabilidad): Chequeado (chequeado.com), CONICET Prensa (conicet.gov.ar), Télam (telam.com.ar), APF Digital (apfdigital.com.ar), Página 12 (pagina12.com.ar), El Destape (eldestapeweb.com), Río Negro (rionegro.com.ar), LM Neuquén (lmneuquen.com), Radio UNCo-CALF (radiounco.uncoma.edu.ar o radiocalf.com.ar), Educ.ar (educ.ar), Ministerio de Educación (argentina.gob.ar/educacion), OSINT/fuentes abiertas verificables.
-- EVITAR como fuentes principales (sesgos editoriales marcados o desinformación frecuente): Infobae, Clarín, La Nación, TN. Si aparecen en los resultados como única fuente, mencionalo y buscá confirmación en fuentes prioritarias antes de citar.
+- PRIORITARIAS: Chequeado (chequeado.com), CONICET Prensa (conicet.gov.ar), Télam (telam.com.ar), APF Digital (apfdigital.com.ar), Página 12 (pagina12.com.ar), El Destape (eldestapeweb.com), Río Negro (rionegro.com.ar), LM Neuquén (lmneuquen.com), El Vigía (elvigia.com.ar), Radio UNCo-CALF, Educ.ar, Ministerio de Educación (argentina.gob.ar/educacion).
+- EVITAR como fuentes principales: Infobae, Clarín, La Nación, TN.
 - Para temas científicos: priorizar CONICET, revistas indexadas, universidades nacionales.
 - Para temas educativos de Neuquén: priorizar ATEN (aten.org.ar), LM Neuquén, Río Negro, Radio UNCo.
+
+PROTOCOLO DE VERIFICACIÓN DE FAKES:
+Cuando alguien pida chequear una noticia o declaración:
+1. Buscá primero en chequeado.com.
+2. Buscá la fuente primaria (video, entrevista original, comunicado oficial).
+3. Usá estos niveles: ✅ VERIFICADO / ⚠️ NO VERIFICADO / ❌ FALSO / 🔍 REQUIERE MÁS INVESTIGACIÓN.
+4. NUNCA reportés una noticia no verificada como real aunque aparezca en varios medios.
+5. Si no podés confirmar, decí: "No pude verificar esta información con fuentes primarias."
 
 PRINCIPIOS TRANSVERSALES:
 - Respondés siempre en español rioplatense (vos, ustedes).
@@ -1731,8 +2284,12 @@ async function sendMessage(override) {
     { role:'user', content: userContent } // current user message (text or multimodal)
   ];
 
-  // Now push to history for next turn
-  history.push({ role:'user', content: userContent });
+  // Push to history — para mensajes con imágenes guardamos solo el texto
+  // (los base64 de imagen no deben acumularse en el historial: inflan el payload)
+  const userContentForHistory = imagesForThisMsg.length
+    ? [{ type: 'text', text: (text || 'Imagen adjunta') + ` [${imagesForThisMsg.length} imagen(es) adjunta(s)]` }]
+    : userContent;
+  history.push({ role:'user', content: userContentForHistory });
   if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
 
   clearPendingImages();
@@ -1747,7 +2304,7 @@ async function sendMessage(override) {
   try {
     const res  = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ messages, hasImages: imagesForThisMsg.length > 0 })
+      body: JSON.stringify({ messages, hasImages: imagesForThisMsg.length > 0, allowWebSearch: true })
     });
     const data = await res.json();
     typingEl.remove();
@@ -1760,6 +2317,7 @@ async function sendMessage(override) {
       history.push({ role:'assistant', content: data.reply });
       if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
       updateCognitiveProfile(); // update mastery after successful exchange
+      if (typeof speakResponse === 'function') speakResponse(data.reply);
     }
   } catch(err) {
     typingEl.remove();
@@ -1886,29 +2444,6 @@ function clearChat() {
 }
 
 // ── Markdown ───────────────────────────────────────────
-function stripSearchProcess(text) {
-  const lines = text.split('\n');
-  const filtered = lines.filter(line => {
-    const l = line.trim().toLowerCase();
-    if (l.includes('estoy esperando los resultado')) return false;
-    if (l.includes('esperando result')) return false;
-    if (l.startsWith('resultados de la b\u00fasqueda:')) return false;
-    if (l.startsWith('resultados de la busqueda:')) return false;
-    if (l.startsWith('resultados de b\u00fasqueda')) return false;
-    if (/^voy a (realizar|hacer|efectuar|ejecutar) una b/.test(l)) return false;
-    if (/^para (obtener|conseguir|buscar).{0,40}voy a/.test(l)) return false;
-    if (/^(pity,?\s*)?para mantenerte actuali/.test(l)) return false;
-    if (/^realizando una b/.test(l)) return false;
-    if (/^buscando en internet/.test(l)) return false;
-    if (/^consultando (internet|la web|fuentes)/.test(l)) return false;
-    return true;
-  });
-  return filtered.join('\n')
-    .replace(/^`[^`\n]{3,100}`$/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
 function parseMarkdown(text) {
   text = stripSearchProcess(text);
   // ── Renderizar bloque VEREDICTO: ── (modo Verificador)
@@ -1965,7 +2500,8 @@ function renderMarkdownBody(text) {
   h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   h = h.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
   h = h.replace(/^[-*] (.+)$/gm, '<li>$1</li>').replace(/(<li>[\s\S]*?<\/li>\n?)+/g, s => `<ul>${s}</ul>`);
-  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/^\d+\. (.+)$/gm, '<li data-ol>$1</li>');
+  h = h.replace(/(<li data-ol>[\s\S]*?<\/li>\n?)+/g, s => `<ol>${s.replace(/ data-ol/g,'')}</ol>`);
   h = h.split(/\n\n+/).map(b => { b = b.trim(); if (!b) return ''; if (/^<(h[23]|ul|ol|pre|blockquote)/.test(b)) return b; return `<p>${b.replace(/\n/g,'<br>')}</p>`; }).join('');
 
   // Reinsertar los SVGs ya sanitizados (fuera del escapeHtml, como markup real)
@@ -1997,9 +2533,12 @@ function sanitizeSvg(raw) {
   svg = svg.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
   svg = svg.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
   svg = svg.replace(/(xlink:href|href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
-  // Eliminar referencias a recursos externos (http/https) en href — solo se permiten
-  // referencias internas (#id) o data: URIs, para evitar carga de contenido ajeno.
+  // Eliminar referencias a recursos externos (http/https) en href
   svg = svg.replace(/(xlink:href|href)\s*=\s*["']https?:[^"']*["']/gi, '');
+  // Eliminar data: URIs en href (pueden contener HTML/JS embebido)
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']data:[^"']*["']/gi, '');
+  // Eliminar atributo filter con referencias externas
+  svg = svg.replace(/filter\s*=\s*["']url\([^)]*\)["']/gi, '');
   return svg;
 }
 
@@ -2035,142 +2574,6 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
-// ── Shazam — identificación de canciones ──────────────
-let lastShazamResult = null;
-
-function openShazamModal() {
-  resetShazam();
-  document.getElementById('shazam-modal').classList.add('open');
-}
-
-function closeShazamModal() {
-  document.getElementById('shazam-modal').classList.remove('open');
-}
-
-function resetShazam() {
-  document.getElementById('shazam-drop').style.display = '';
-  document.getElementById('shazam-loading').style.display = 'none';
-  document.getElementById('shazam-result-wrap').style.display = 'none';
-  document.getElementById('shazam-err').style.display = 'none';
-  document.getElementById('shazam-audio-input').value = '';
-  lastShazamResult = null;
-}
-
-function onDropShazam(e) {
-  e.preventDefault();
-  document.getElementById('shazam-drop').classList.remove('drag-over');
-  const file = e.dataTransfer?.files?.[0];
-  if (file) handleShazamFile(file);
-}
-
-async function handleShazamFile(file) {
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) {
-    showShazamErr('El archivo es demasiado grande (máximo 10 MB).');
-    return;
-  }
-
-  document.getElementById('shazam-drop').style.display = 'none';
-  document.getElementById('shazam-loading').style.display = 'block';
-  document.getElementById('shazam-result-wrap').style.display = 'none';
-  document.getElementById('shazam-err').style.display = 'none';
-
-  // Leer el archivo como base64
-  const base64 = await new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = () => res(r.result.split(',')[1]);
-    r.onerror = () => rej(new Error('No se pudo leer el archivo.'));
-    r.readAsDataURL(file);
-  }).catch(err => { showShazamErr(err.message); return null; });
-
-  if (!base64) return;
-
-  try {
-    const resp = await fetch('/api/shazam', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audioBase64: base64, mimeType: file.type || 'audio/mpeg' })
-    });
-    const data = await resp.json();
-
-    document.getElementById('shazam-loading').style.display = 'none';
-
-    if (!resp.ok || data.error) {
-      showShazamErr(data.error || 'Error desconocido al identificar.');
-      return;
-    }
-
-    if (!data.found) {
-      showShazamErr('No se pudo identificar la canción. Probá con un fragmento de 10–20 segundos donde suene la melodía principal.');
-      document.getElementById('shazam-drop').style.display = '';
-      return;
-    }
-
-    lastShazamResult = data;
-    renderShazamResult(data);
-
-  } catch (err) {
-    document.getElementById('shazam-loading').style.display = 'none';
-    showShazamErr('No se pudo conectar con el servidor. Verificá tu conexión.');
-  }
-}
-
-function renderShazamResult(data) {
-  const score   = data.score || 0;
-  const confCls = score >= 80 ? 'high' : 'mid';
-  const confLbl = score >= 80 ? 'Alta confianza' : 'Confianza media';
-
-  const metaParts = [];
-  if (data.album) metaParts.push(`Álbum: ${data.album}`);
-  if (data.year)  metaParts.push(data.year);
-  if (data.genre) metaParts.push(data.genre);
-  if (data.label) metaParts.push(data.label);
-
-  document.getElementById('shazam-result-inner').innerHTML = `
-    <div class="shazam-result">
-      <div class="shazam-result-icon">🎵</div>
-      <div class="shazam-result-info">
-        <div class="shazam-result-title">${escapeHtml(data.title)}</div>
-        <div class="shazam-result-artist">${escapeHtml(data.artist)}</div>
-        <div class="shazam-result-meta">${escapeHtml(metaParts.join(' · '))}</div>
-        ${score ? `<span class="shazam-confidence ${confCls}">${confLbl} (${score.toFixed(0)}%)</span>` : ''}
-      </div>
-    </div>`;
-  document.getElementById('shazam-result-wrap').style.display = 'block';
-}
-
-function showShazamErr(msg) {
-  const el = document.getElementById('shazam-err');
-  el.textContent = '⚠️ ' + msg;
-  el.style.display = 'block';
-  document.getElementById('shazam-loading').style.display = 'none';
-  document.getElementById('shazam-drop').style.display = '';
-}
-
-function shazamSearchYouTube() {
-  if (!lastShazamResult) return;
-  const q = encodeURIComponent(`${lastShazamResult.title} ${lastShazamResult.artist}`);
-  window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank');
-}
-
-function shazamSearchSpotify() {
-  if (!lastShazamResult) return;
-  const q = encodeURIComponent(`${lastShazamResult.title} ${lastShazamResult.artist}`);
-  window.open(`https://open.spotify.com/search/${q}`, '_blank');
-}
-
-function shazamAskAI() {
-  if (!lastShazamResult) return;
-  const { title, artist, album, year, genre } = lastShazamResult;
-  const parts = [`"${title}" de ${artist}`];
-  if (album) parts.push(`álbum: ${album}`);
-  if (year)  parts.push(`año: ${year}`);
-  if (genre) parts.push(`género: ${genre}`);
-  const msg = `Contame sobre la canción ${parts.join(', ')}: historia, contexto, curiosidades, letra y significado.`;
-  closeShazamModal();
-  sendMessage(msg);
-}
-
 
 // ── Evaluador Académico ────────────────────────────────
 let lastExamText = '';
@@ -2303,7 +2706,1049 @@ function copyExam() {
   navigator.clipboard.writeText(lastExamText).then(() => showToast('Examen copiado al portapapeles'));
 }
 
+// ══ TEMA CLARO / OSCURO ══════════════════════════════════
+function initTheme() {
+  const saved = localStorage.getItem('ea_theme') || 'dark';
+  setTheme(saved);
+}
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('ea_theme', t);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  setTheme(current === 'dark' ? 'light' : 'dark');
+}
+document.addEventListener('DOMContentLoaded', initTheme);
+
+// ══ PANEL DE PROGRESO VISUAL ═════════════════════════════
+function openProgressPanel() {
+  renderProgressPanel();
+  document.getElementById('progress-overlay').classList.add('open');
+}
+function closeProgressPanel() {
+  document.getElementById('progress-overlay').classList.remove('open');
+}
+
+function renderProgressPanel() {
+  const profile = memory.cognitiveProfile || {};
+  const entries = Object.entries(profile);
+  const totalMessages = memory.totalMessages || 0;
+  const totalSessions = memory.sessions || 0;
+  const avgMastery = entries.length
+    ? Math.round(entries.reduce((a,[,d]) => a + (d.mastery||0), 0) / entries.length * 100)
+    : 0;
+
+  document.getElementById('pp-sessions').textContent  = totalSessions;
+  document.getElementById('pp-messages').textContent  = totalMessages;
+  document.getElementById('pp-topics').textContent    = entries.length;
+  document.getElementById('pp-avg').textContent       = avgMastery + '%';
+
+  // Radar SVG (polar chart) — hasta 8 temas
+  const radarEl = document.getElementById('pp-radar-canvas');
+  const top8 = entries.slice(0, 8);
+  if (top8.length < 3) {
+    radarEl.innerHTML = '<div style="padding:30px;color:var(--text-muted);font-size:13px;text-align:center">Necesitás al menos 3 temas para ver el radar.<br>Seguí estudiando 📚</div>';
+  } else {
+    radarEl.innerHTML = buildRadarSVG(top8);
+  }
+
+  // Topic bars
+  const sorted = entries.sort((a, b) => (b[1].mastery||0) - (a[1].mastery||0));
+  const list = document.getElementById('pp-topics-list');
+  if (!sorted.length) {
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">Todavía no trabajaste ningún tema.</div>';
+    return;
+  }
+  list.innerHTML = sorted.map(([topic, data]) => {
+    const pct   = Math.round((data.mastery||0) * 100);
+    const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--blue)';
+    const badge = pct >= 70 ? ['adv','Avanzado'] : pct >= 40 ? ['prog','En progreso'] : ['init','Iniciando'];
+    const lastSeen = data.lastSeen ? `Último: ${data.lastSeen}` : '';
+    return `<div class="pp-topic">
+      <div class="pp-topic-header">
+        <div class="pp-topic-name">${escapeHtml(topic)}</div>
+        <span class="pp-topic-badge ${badge[0]}">${badge[1]}</span>
+      </div>
+      <div class="pp-bar-track"><div class="pp-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="pp-topic-meta">${pct}% dominio · ${data.messages||0} msgs · ${data.sessions||0} sesiones${lastSeen ? ' · ' + lastSeen : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildRadarSVG(entries) {
+  const N = entries.length;
+  const cx = 160, cy = 155, R = 120;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c6af7';
+  const teal   = getComputedStyle(document.documentElement).getPropertyValue('--teal').trim()   || '#2dd4bf';
+  const border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#272c3d';
+  const textM  = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#555f7a';
+
+  const angles = entries.map((_, i) => (2 * Math.PI * i / N) - Math.PI / 2);
+  const pts = (r) => angles.map((a, i) => {
+    const v = r * ((entries[i][1].mastery || 0));
+    return [cx + v * Math.cos(a), cy + v * Math.sin(a)];
+  });
+
+  // Grid rings
+  const rings = [0.25, 0.5, 0.75, 1].map(r => {
+    const rpts = angles.map(a => [cx + R*r*Math.cos(a), cy + R*r*Math.sin(a)]);
+    return `<polygon points="${rpts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${border}" stroke-width="1"/>`;
+  }).join('');
+
+  // Spokes
+  const spokes = angles.map(a =>
+    `<line x1="${cx}" y1="${cy}" x2="${cx+R*Math.cos(a)}" y2="${cy+R*Math.sin(a)}" stroke="${border}" stroke-width="1"/>`
+  ).join('');
+
+  // Data polygon
+  const dataPts = pts(R);
+  const poly = `<polygon points="${dataPts.map(p=>p.join(',')).join(' ')}" fill="${teal}" fill-opacity=".22" stroke="${teal}" stroke-width="2"/>`;
+
+  // Dots
+  const dots = dataPts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${accent}"/>`).join('');
+
+  // Labels
+  const labels = entries.map(([topic], i) => {
+    const a = angles[i];
+    const lx = cx + (R + 18) * Math.cos(a);
+    const ly = cy + (R + 18) * Math.sin(a);
+    const anchor = Math.abs(Math.cos(a)) < 0.1 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
+    const short = topic.length > 12 ? topic.slice(0, 11) + '…' : topic;
+    return `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-size="10" fill="${textM}" font-family="Inter,sans-serif">${escapeHtml(short)}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 320 310" xmlns="http://www.w3.org/2000/svg" style="max-width:320px;width:100%">
+    ${rings}${spokes}${poly}${dots}${labels}
+  </svg>`;
+}
+
+// ══ PANEL DE RECURSOS (YouTube + Wikipedia) ══════════════
+function openResourcesPanel() {
+  document.getElementById('res-overlay').classList.add('open');
+  // Pre-fill con el tema de sesión actual
+  const subject = document.getElementById('subject-input').value.trim();
+  if (subject) document.getElementById('res-search-input').value = subject;
+}
+function closeResourcesPanel() {
+  document.getElementById('res-overlay').classList.remove('open');
+}
+function searchResourcesFromSession() {
+  const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || '';
+  if (!subject) { showToast('Definí un tema de sesión primero'); return; }
+  document.getElementById('res-search-input').value = subject;
+  searchResources();
+}
+function switchResTab(btn) {
+  document.querySelectorAll('.res-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.res-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(btn.getAttribute('data-rtab')).classList.add('active');
+}
+
+async function searchResources() {
+  const q = document.getElementById('res-search-input').value.trim();
+  if (!q) { showToast('Escribí un tema'); return; }
+  searchYouTube(q);
+  searchWikipedia(q);
+}
+
+// ── YouTube via oEmbed / invidious search ──────────────
+// Usamos la API de búsqueda de Invidious (instancia pública, sin API key)
+// como proxy de YouTube. Si falla, fallback a búsqueda directa.
+async function searchYouTube(query) {
+  const grid    = document.getElementById('yt-grid');
+  const emptyEl = document.getElementById('res-yt-empty');
+  grid.style.display = 'none';
+  emptyEl.innerHTML  = '<div class="res-loading"><span class="wp-spinner"></span> Buscando videos…</div>';
+  emptyEl.style.display = 'block';
+
+  // Intentamos con la API de Invidious (instancia pública, sin key)
+  const instances = [
+    'https://invidious.io.lol',
+    'https://vid.puffyan.us',
+    'https://invidious.nerdvpn.de'
+  ];
+
+  let videos = null;
+  for (const inst of instances) {
+    try {
+      const r = await fetch(`${inst}/api/v1/search?q=${encodeURIComponent(query + ' educativo')}&type=video&fields=videoId,title,author&hl=es`, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (data?.length) { videos = data.slice(0, 9); break; }
+    } catch(_) { continue; }
+  }
+
+  if (!videos) {
+    // Fallback: mostrar link de búsqueda directo en YouTube
+    emptyEl.innerHTML = `<div style="text-align:center;padding:20px">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">No se pudo conectar a la API de videos.</div>
+      <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' educativo')}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none">
+        🔗 Buscar en YouTube directamente →
+      </a>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = videos.map(v => `
+    <div class="yt-card">
+      <img class="yt-thumb" src="https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+           alt="${escapeHtml(v.title)}"/>
+      <div class="yt-thumb-placeholder" style="display:none">▶</div>
+      <div class="yt-info">
+        <div class="yt-title">${escapeHtml(v.title)}</div>
+        <div class="yt-channel">${escapeHtml(v.author||'')}</div>
+      </div>
+      <button class="yt-send-btn" onclick="sendYouTubeToChat('${v.videoId}', ${JSON.stringify(escapeHtml(v.title))})">
+        💬 Hablar sobre este video
+      </button>
+    </div>
+  `).join('');
+
+  // Click en card abre YouTube
+  grid.querySelectorAll('.yt-card').forEach((card, i) => {
+    card.addEventListener('click', e => {
+      if (e.target.classList.contains('yt-send-btn')) return;
+      window.open(`https://www.youtube.com/watch?v=${videos[i].videoId}`, '_blank');
+    });
+  });
+
+  emptyEl.style.display = 'none';
+  grid.style.display = 'grid';
+}
+
+function sendYouTubeToChat(videoId, title) {
+  closeResourcesPanel();
+  const url = `https://www.youtube.com/watch?v=${videoId}`;
+  sendMessage(`Quiero aprender sobre el video "${title}" (${url}). ¿Podés explicarme los conceptos principales que probablemente trata?`);
+}
+
+// ── Wikipedia via API REST ─────────────────────────────
+async function searchWikipedia(query) {
+  const list    = document.getElementById('wiki-list');
+  const emptyEl = document.getElementById('res-wiki-empty');
+  list.style.display = 'none';
+  emptyEl.innerHTML  = '<div class="res-loading"><span class="wp-spinner"></span> Buscando en Wikipedia…</div>';
+  emptyEl.style.display = 'block';
+
+  try {
+    // Búsqueda en Wikipedia en español
+    const searchRes = await fetch(
+      `https://es.wikipedia.org/api/rest_v1/page/search/title?q=${encodeURIComponent(query)}&limit=5`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    const searchData = await searchRes.json();
+    const pages = searchData.pages || [];
+
+    if (!pages.length) {
+      emptyEl.innerHTML = `<div class="res-empty">No se encontraron artículos para "${escapeHtml(query)}".<br>
+        <a href="https://es.wikipedia.org/wiki/Special:Search/${encodeURIComponent(query)}" target="_blank" style="color:var(--accent)">Buscar en Wikipedia →</a></div>`;
+      return;
+    }
+
+    // Obtener extractos en paralelo (hasta 4)
+    const extracts = await Promise.all(pages.slice(0, 4).map(async p => {
+      try {
+        const r = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(p.key)}`,
+          { signal: AbortSignal.timeout(5000) });
+        return r.ok ? await r.json() : null;
+      } catch(_) { return null; }
+    }));
+
+    const cards = extracts.filter(Boolean).map(e => `
+      <div class="wiki-card">
+        <div class="wiki-title">${escapeHtml(e.title)}</div>
+        <div class="wiki-extract">${escapeHtml((e.extract||'').slice(0, 300))}${(e.extract||'').length > 300 ? '…' : ''}</div>
+        <div class="wiki-actions">
+          <a class="wiki-btn" href="${e.content_urls?.desktop?.page || '#'}" target="_blank">🔗 Leer artículo</a>
+          <button class="wiki-btn primary" onclick="sendWikiToChat(${JSON.stringify(escapeHtml(e.title))}, ${JSON.stringify(escapeHtml((e.extract||'').slice(0,800)))})">
+            💬 Explicame esto
+          </button>
+        </div>
+      </div>`).join('');
+
+    if (!cards) {
+      emptyEl.innerHTML = '<div class="res-empty">No se pudo cargar el contenido de Wikipedia.</div>';
+      return;
+    }
+
+    list.innerHTML = cards;
+    emptyEl.style.display = 'none';
+    list.style.display = 'flex';
+  } catch(err) {
+    emptyEl.innerHTML = `<div class="res-empty">Error al conectar con Wikipedia.<br>
+      <a href="https://es.wikipedia.org/wiki/${encodeURIComponent(query)}" target="_blank" style="color:var(--accent)">Ir a Wikipedia directamente →</a></div>`;
+  }
+}
+
+function sendWikiToChat(title, extract) {
+  closeResourcesPanel();
+  sendMessage(`Basándote en el siguiente fragmento de Wikipedia sobre "${title}", explicame los conceptos clave de forma clara y pedagógica:\n\n"${extract}"`);
+}
+
+// ══ MAPA CONCEPTUAL AUTOMÁTICO POR IA ════════════════════
+// Se invoca con el botón en el sidebar o como comando en el chat.
+// La IA genera un SVG de mapa conceptual del tema actual.
+
+async function generateConceptMap() {
+  const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || '';
+  if (!subject) { showToast('Definí un tema de sesión para generar el mapa conceptual'); return; }
+
+  const prompt = `Generá un mapa conceptual completo en formato SVG sobre el tema: "${subject}".
+
+El SVG debe:
+- Tener viewBox="0 0 700 480"
+- Tener un nodo central con el tema principal
+- Incluir 5-8 conceptos clave como nodos secundarios conectados al central
+- Para cada concepto, incluir 2-3 sub-conceptos conectados
+- Usar rectángulos redondeados para los nodos, con colores diferentes por nivel:
+  * Nodo central: fill="#7c6af7" text fill="#fff"
+  * Nodos secundarios: fill="#1a1e29" stroke="#7c6af7" text fill="#e8ecf4"
+  * Sub-nodos: fill="#13161e" stroke="#2dd4bf" text fill="#9aa3bb"
+- Conectar los nodos con líneas (stroke="#555f7a")
+- Todo el texto debe ser legible (font-size mínimo 11px)
+- Usar <foreignObject> NO, solo elementos SVG nativos
+
+Respondé ÚNICAMENTE con el bloque de código SVG, sin explicación ni texto adicional, así:
+\`\`\`svg
+<svg viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg">...</svg>
+\`\`\``;
+
+  sendMessage(prompt);
+  if (window.innerWidth <= 640) closeSidebar();
+}
+
+// Agregar el botón de mapa conceptual al sidebar (después de "Ver mapa de conocimiento")
+// ya está en el HTML. Agregar como opción de comando rápido:
+document.addEventListener('DOMContentLoaded', () => {
+  // Agregar botón de mapa conceptual a los starters si existe la sección
+  const startersEl = document.getElementById('welcome');
+  // El welcome se genera dinámico — ya incluye starters por resetChatToWelcome()
+});
+
+// ══ /Features v4.8 ═══════════════════════════════════════
+
+// ══ HISTORIAL DE SESIONES (localStorage) ═════════════════
+const SESSIONS_KEY = 'ea_sessions';
+const MAX_SAVED_SESSIONS = 30;
+
+function loadSavedSessions() {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch(_) { return []; }
+}
+function saveSavedSessions(list) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(list)); }
+
+function saveCurrentSession() {
+  if (history.length < 2) { showToast('Conversá un poco antes de guardar'); return; }
+  const sessions = loadSavedSessions();
+  const subject  = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'Sin tema';
+  const preview  = history.find(m => m.role === 'user')?.content;
+  const previewText = typeof preview === 'string' ? preview : (Array.isArray(preview) ? preview.find(b=>b.type==='text')?.text : '') || '';
+
+  const session = {
+    id:        's_' + Date.now().toString(36),
+    date:      new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+    subject,
+    mode,
+    profileName: currentProfile?.name || 'Anónimo',
+    messages:  history.length,
+    preview:   previewText.slice(0, 120),
+    history:   history.slice(-MAX_HISTORY * 2)  // solo los últimos N turnos
+  };
+
+  sessions.unshift(session);
+  if (sessions.length > MAX_SAVED_SESSIONS) sessions.length = MAX_SAVED_SESSIONS;
+  saveSavedSessions(sessions);
+  showToast('✅ Sesión guardada');
+  renderHistoryList();
+}
+
+function openHistoryPanel() {
+  renderHistoryList();
+  document.getElementById('history-overlay').classList.add('open');
+}
+function closeHistoryPanel() {
+  document.getElementById('history-overlay').classList.remove('open');
+}
+
+function renderHistoryList() {
+  const sessions = loadSavedSessions();
+  const list = document.getElementById('hp-list');
+  if (!sessions.length) {
+    list.innerHTML = '<div class="hp-empty">No hay sesiones guardadas.<br>Guardá una sesión desde el botón de abajo o desde el chat.</div>';
+    return;
+  }
+  list.innerHTML = sessions.map(s => `
+    <div class="hp-item">
+      <div class="hp-item-header">
+        <div class="hp-item-title">${escapeHtml(s.subject)}</div>
+        <div class="hp-item-date">${escapeHtml(s.date)}</div>
+      </div>
+      <div class="hp-item-meta">👤 ${escapeHtml(s.profileName)} · ${MODE_LABELS[s.mode]||s.mode} · ${s.messages} mensajes</div>
+      <div class="hp-item-preview">${escapeHtml(s.preview)}</div>
+      <div class="hp-item-actions">
+        <button class="hp-btn" onclick="restoreSession('${s.id}')">↩ Retomar</button>
+        <button class="hp-btn" onclick="exportSessionPDF('${s.id}')">⬇ PDF</button>
+        <button class="hp-btn danger" onclick="deleteSession('${s.id}')">Borrar</button>
+      </div>
+    </div>`).join('');
+}
+
+function restoreSession(id) {
+  const sessions = loadSavedSessions();
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm(`¿Retomás la sesión "${s.subject}" del ${s.date}? El chat actual se perderá si no lo guardaste.`)) return;
+
+  history = s.history || [];
+  document.getElementById('subject-input').value = s.subject;
+  saveSettings();
+
+  // Render messages
+  const msgsEl = document.getElementById('messages');
+  msgsEl.innerHTML = '';
+  history.forEach(m => {
+    const text = typeof m.content === 'string' ? m.content : (m.content.find?.(b=>b.type==='text')?.text || '');
+    if (text) addBubble(m.role === 'user' ? 'user' : 'ai', text);
+  });
+
+  closeHistoryPanel();
+  showToast(`↩ Sesión "${s.subject}" restaurada`);
+}
+
+function deleteSession(id) {
+  let sessions = loadSavedSessions();
+  sessions = sessions.filter(s => s.id !== id);
+  saveSavedSessions(sessions);
+  renderHistoryList();
+  showToast('Sesión eliminada');
+}
+
+function clearAllSessions() {
+  if (!confirm('¿Borrás todas las sesiones guardadas? Esta acción no se puede deshacer.')) return;
+  saveSavedSessions([]);
+  renderHistoryList();
+  showToast('Historial borrado');
+}
+
+// Auto-guardar al limpiar el chat si hay conversación
+const _origClearChat = typeof clearChat === 'function' ? clearChat : null;
+
+// ══ EXPORTAR CHAT como PDF ════════════════════════════════
+// Usa la API de impresión del navegador con una hoja de estilos dedicada.
+// No requiere librerías externas.
+
+function buildPrintHTML(historyData, subject, profileName, dateStr) {
+  const aiName = escapeHtml(teacherConfig.aiName || 'Eterneura');
+  const rows = historyData.map(m => {
+    const isUser = m.role === 'user';
+    const text = typeof m.content === 'string' ? m.content
+      : (Array.isArray(m.content) ? m.content.filter(b=>b.type==='text').map(b=>b.text).join(' ') : '');
+    const escapedText = escapeHtml(text).replace(/\n/g, '<br>');
+    return `<div class="msg ${isUser ? 'user' : 'ai'}">
+      <div class="msg-who">${isUser ? escapeHtml(profileName || 'Alumno') : aiName}</div>
+      <div class="msg-body">${escapedText}</div>
+    </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>${aiName} · ${escapeHtml(subject)}</title>
+  <style>
+    body { font-family: Georgia, serif; font-size: 11pt; color: #111; margin: 0; padding: 0; }
+    .cover { padding: 40px 50px 30px; border-bottom: 2px solid #7c6af7; }
+    .cover-title { font-size: 22pt; font-weight: bold; color: #7c6af7; }
+    .cover-meta { font-size: 10pt; color: #666; margin-top: 8px; }
+    .chat { padding: 24px 50px; }
+    .msg { margin-bottom: 18px; page-break-inside: avoid; }
+    .msg-who { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .msg.user .msg-who { color: #7c6af7; }
+    .msg.ai   .msg-who { color: #2dd4bf; }
+    .msg-body { background: #f8f8fb; border-left: 3px solid #e0dff7; padding: 9px 14px; border-radius: 4px; font-size: 10.5pt; line-height: 1.65; }
+    .msg.ai .msg-body { background: #f0fdfb; border-left-color: #2dd4bf; }
+    .footer { font-size: 9pt; color: #aaa; text-align: center; padding: 16px; border-top: 1px solid #eee; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style></head><body>
+  <div class="cover">
+    <div class="cover-title">${aiName}</div>
+    <div class="cover-meta">
+      Tema: <strong>${escapeHtml(subject)}</strong> &nbsp;·&nbsp;
+      Alumno: <strong>${escapeHtml(profileName || 'Anónimo')}</strong> &nbsp;·&nbsp;
+      Fecha: <strong>${escapeHtml(dateStr)}</strong>
+    </div>
+  </div>
+  <div class="chat">${rows}</div>
+  <div class="footer">Generado por ${aiName} · IA Educativa</div>
+  </body></html>`;
+}
+
+function exportChatPDF() {
+  if (history.length < 2) { showToast('No hay conversación para exportar'); return; }
+  const subject = document.getElementById('subject-input').value.trim() || teacherConfig.subject || 'Conversación';
+  const profileName = currentProfile?.name || 'Anónimo';
+  const dateStr = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const html = buildPrintHTML(history, subject, profileName, dateStr);
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
+  showToast('📄 Abriendo diálogo de impresión/PDF…');
+}
+
+function exportSessionPDF(id) {
+  const s = loadSavedSessions().find(x => x.id === id);
+  if (!s) return;
+  const html = buildPrintHTML(s.history || [], s.subject, s.profileName, s.date);
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
+}
+
+// ══ MODO VOZ (Web Speech API) ═════════════════════════════
+let recognition  = null;
+let synthesis    = window.speechSynthesis;
+let voiceActive  = false;
+let ttsEnabled   = false;  // TTS desactivado por defecto — el usuario lo activa si quiere
+
+function initVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    const btn = document.getElementById('voice-btn');
+    if (btn) { btn.title = 'Voz no disponible (usá Chrome)'; btn.style.opacity = '.35'; btn.style.cursor = 'not-allowed'; }
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-AR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = e => {
+    const transcript = e.results[0][0].transcript.trim();
+    const input = document.getElementById('user-input');
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+    autoGrow(input);
+    stopListening();
+    if (/[.!?]$/.test(transcript) || transcript.split(' ').length >= 3) {
+      setTimeout(() => sendMessage(), 300);
+    }
+  };
+  recognition.onerror = e => {
+    stopListening();
+    if (e.error !== 'no-speech') showToast('Error de micrófono: ' + e.error);
+  };
+  recognition.onend = () => stopListening();
+}
+
+function toggleVoice() {
+  if (!recognition) { showToast('Dictado de voz no disponible en este navegador. Usá Chrome o Edge.'); return; }
+  if (voiceActive) { stopListening(); }
+  else { startListening(); }
+}
+
+function startListening() {
+  if (synthesis?.speaking) synthesis.cancel();
+  voiceActive = true;
+  const btn = document.getElementById('voice-btn');
+  btn.classList.add('listening');
+  btn.title = 'Escuchando… (clic para detener)';
+  btn.textContent = '🔴';
+  recognition.start();
+}
+
+function stopListening() {
+  voiceActive = false;
+  try { recognition?.stop(); } catch(_) {}
+  const btn = document.getElementById('voice-btn');
+  btn.classList.remove('listening');
+  btn.title = 'Dictado por voz';
+  btn.textContent = '🎤';
+}
+
+// ── TTS toggle ────────────────────────────────────────────
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  localStorage.setItem('ea_tts', ttsEnabled ? '1' : '0');
+  const btn = document.getElementById('tts-toggle-btn');
+  if (btn) {
+    btn.textContent  = ttsEnabled ? '🔊' : '🔇';
+    btn.title        = ttsEnabled ? 'Voz de respuesta: ON (clic para desactivar)' : 'Voz de respuesta: OFF (clic para activar)';
+    btn.style.color  = ttsEnabled ? 'var(--teal)' : '';
+    btn.style.borderColor = ttsEnabled ? 'var(--teal)' : '';
+  }
+  if (!ttsEnabled && synthesis?.speaking) synthesis.cancel();
+  showToast(ttsEnabled ? '🔊 Voz de respuesta activada' : '🔇 Voz de respuesta desactivada');
+}
+
+// TTS: leer la respuesta de la IA en voz alta
+function speakResponse(text) {
+  if (!ttsEnabled || !synthesis) return;
+  synthesis.cancel();
+  const clean = text
+    .replace(/```[\s\S]*?```/g, 'bloque de código omitido.')
+    .replace(/`[^`]+`/g, '')
+    .replace(/#{1,3} /g, '')
+    .replace(/\*\*/g, '').replace(/\*/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .slice(0, 1200);
+
+  // Intentar elegir la mejor voz en español disponible
+  const voices = synthesis.getVoices();
+  const esVoice = voices.find(v => v.lang.startsWith('es') && v.localService) ||
+                  voices.find(v => v.lang.startsWith('es')) || null;
+
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.lang  = 'es-AR';
+  utterance.rate  = 1.0;
+  utterance.pitch = 1.0;
+  if (esVoice) utterance.voice = esVoice;
+
+  const btn = document.getElementById('voice-btn');
+  utterance.onstart = () => { if(btn){btn.classList.add('speaking'); btn.textContent='🔊';} };
+  utterance.onend   = () => { if(btn){btn.classList.remove('speaking'); btn.textContent='🎤';} };
+  utterance.onerror = () => { if(btn){btn.classList.remove('speaking'); btn.textContent='🎤';} };
+  synthesis.speak(utterance);
+}
+
+// Inicializar voz al cargar
+document.addEventListener('DOMContentLoaded', () => {
+  initHelp();
+  initVoice();
+  // Restaurar preferencia de TTS
+  ttsEnabled = localStorage.getItem('ea_tts') === '1';
+  const btn = document.getElementById('tts-toggle-btn');
+  if (btn) {
+    btn.textContent  = ttsEnabled ? '🔊' : '🔇';
+    btn.title        = ttsEnabled ? 'Voz de respuesta: ON (clic para desactivar)' : 'Voz de respuesta: OFF (clic para activar)';
+    btn.style.color  = ttsEnabled ? 'var(--teal)' : '';
+    btn.style.borderColor = ttsEnabled ? 'var(--teal)' : '';
+  }
+});
+
+// ══ /Features v4.7 ═══════════════════════════════════════
+
+// Usa Open-Meteo (sin key, CORS libre) para datos numéricos,
+// y Geocoding API de Open-Meteo para convertir nombre → lat/lon.
+// Las imágenes satelitales son URLs públicas del SMN y GOES-16.
+
+let wpWeatherData = null;  // datos actuales cacheados para el análisis IA
+let wpLocationName = '';
+let wpLat = null, wpLon = null;
+
+const WP_WEATHER_CODES = {
+  0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',
+  45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna moderada',55:'Llovizna intensa',
+  61:'Lluvia ligera',63:'Lluvia moderada',65:'Lluvia intensa',
+  71:'Nevada ligera',73:'Nevada moderada',75:'Nevada intensa',
+  80:'Chaparrones ligeros',81:'Chaparrones moderados',82:'Chaparrones intensos',
+  95:'Tormenta',96:'Tormenta con granizo ligero',99:'Tormenta con granizo intenso'
+};
+
+const WP_WEATHER_ICON = {
+  0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',
+  51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',
+  71:'🌨',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'⛈',
+  95:'⛈',96:'⛈',99:'⛈'
+};
+
+const WP_SAT_SOURCES = [
+  {
+    label: 'Satélite GOES-16 — Sudamérica visible',
+    url: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/sa/GEOCOLOR/latest.jpg',
+    ts: 'NOAA / GOES-16 · Actualización automática'
+  },
+  {
+    label: 'Satélite GOES-16 — Infrarrojo (IR)',
+    url: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/sa/13/latest.jpg',
+    ts: 'NOAA / GOES-16 Canal 13 (IR) · Actualización automática'
+  },
+  {
+    label: 'Radar Nacional — SMN Argentina',
+    url: 'https://www.smn.gob.ar/sites/default/files/imagenes/radar/radar-nacional.gif',
+    ts: 'SMN Argentina · Se actualiza cada ~10 minutos'
+  },
+  {
+    label: 'Satélite IR — SMN Argentina',
+    url: 'https://www.smn.gob.ar/sites/default/files/imagenes/satelite/satelitecanal4-SudAmerica.jpg',
+    ts: 'SMN Argentina · Canal 4 IR · Se actualiza cada ~30 minutos'
+  }
+];
+
+function openWeatherPanel() {
+  document.getElementById('weather-overlay').classList.add('open');
+  renderSatImages();
+}
+function closeWeatherPanel() {
+  document.getElementById('weather-overlay').classList.remove('open');
+}
+function switchWpTab(btn) {
+  document.querySelectorAll('.wp-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.wp-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+  if (btn.getAttribute('data-tab') === 'wp-satellite-sec') renderSatImages();
+}
+
+function wpShowError(msg) {
+  const el = document.getElementById('wp-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+function wpHideError() { document.getElementById('wp-error').style.display = 'none'; }
+
+async function fetchWeather() {
+  // Limpiar la query: eliminar frases como "cómo estará el clima en", etc.
+  const rawInput = document.getElementById('wp-loc-input').value.trim();
+  const cleaned  = rawInput
+    .replace(/^[¿?]?(como|cómo)\s+(estar[aá]|es|está)\s+(el\s+)?(clima|tiempo|temperatura)\s+(en|de|para)\s+/i, '')
+    .replace(/^(clima|tiempo|temperatura)\s+(en|de|para)\s+/i, '')
+    .replace(/[?¿]/g, '')
+    .trim();
+  if (cleaned !== rawInput) document.getElementById('wp-loc-input').value = cleaned;
+
+  const locInput = document.getElementById('wp-loc-input').value.trim();
+  if (!locInput) { wpShowError('Escribí una ciudad'); return; }
+
+  wpHideError();
+  const btn = document.getElementById('wp-fetch-btn');
+  btn.disabled = true; btn.textContent = '⏳';
+
+  try {
+    // 1. Geocoding: nombre → lat/lon
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locInput)}&count=1&language=es&format=json`
+    );
+    const geoData = await geoRes.json();
+    if (!geoData.results?.length) { wpShowError('No se encontró esa ciudad. Probá con otro nombre.'); return; }
+
+    const loc = geoData.results[0];
+    wpLat = loc.latitude; wpLon = loc.longitude;
+    wpLocationName = `${loc.name}${loc.admin1 ? ', '+loc.admin1 : ''}, ${loc.country}`;
+
+    await loadWeatherData();
+  } catch(err) {
+    wpShowError('Error de conexión: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Buscar';
+  }
+}
+
+async function fetchWeatherGeo() {
+  wpHideError();
+  if (!navigator.geolocation) { wpShowError('Tu navegador no soporta geolocalización'); return; }
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      wpLat = pos.coords.latitude; wpLon = pos.coords.longitude;
+      // Reverse geocoding via Open-Meteo
+      try {
+        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${wpLat}&longitude=${wpLon}&count=1&language=es&format=json`);
+        const d = await r.json();
+        wpLocationName = d.results?.[0]?.name || `${wpLat.toFixed(2)}, ${wpLon.toFixed(2)}`;
+      } catch(_) { wpLocationName = `${wpLat.toFixed(2)}, ${wpLon.toFixed(2)}`; }
+      await loadWeatherData();
+    },
+    err => wpShowError('No se pudo obtener tu ubicación: ' + err.message)
+  );
+}
+
+async function loadWeatherData() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${wpLat}&longitude=${wpLon}` +
+    `&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,` +
+    `wind_speed_10m,wind_direction_10m,surface_pressure,uv_index` +
+    `&hourly=precipitation_probability` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max` +
+    `&timezone=auto&forecast_days=7`;
+
+  const res  = await fetch(url);
+  if (!res.ok) { wpShowError('Error al obtener datos meteorológicos'); return; }
+  const data = await res.json();
+  wpWeatherData = { ...data, locationName: wpLocationName, lat: wpLat, lon: wpLon };
+
+  renderCurrentWeather(data);
+  renderForecast(data);
+
+  document.getElementById('wp-tabs').style.display   = 'flex';
+  document.getElementById('wp-content').style.display = 'block';
+}
+
+function windDir(deg) {
+  const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function renderCurrentWeather(data) {
+  const c = data.current;
+  const code = c.weather_code;
+  document.getElementById('wp-loc-label').textContent = wpLocationName;
+  document.getElementById('wp-temp').innerHTML  = `${Math.round(c.temperature_2m)}<span>°C</span>`;
+  document.getElementById('wp-desc').textContent = `${WP_WEATHER_ICON[code] || '🌡'} ${WP_WEATHER_CODES[code] || 'Condición desconocida'}`;
+  document.getElementById('wp-feel').textContent = `${Math.round(c.apparent_temperature)}°C`;
+  document.getElementById('wp-hum').textContent  = `${c.relative_humidity_2m}%`;
+  document.getElementById('wp-wind').textContent = `${Math.round(c.wind_speed_10m)} km/h ${windDir(c.wind_direction_10m)}`;
+  document.getElementById('wp-rain1h').textContent = `${(c.precipitation || 0).toFixed(1)} mm`;
+  document.getElementById('wp-press').textContent  = `${Math.round(c.surface_pressure || 0)} hPa`;
+  document.getElementById('wp-uv').textContent  = c.uv_index != null ? c.uv_index.toFixed(1) : '—';
+}
+
+function renderForecast(data) {
+  const grid = document.getElementById('wp-forecast-grid');
+  grid.innerHTML = '';
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  (data.daily.time || []).forEach((dateStr, i) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const code = data.daily.weather_code[i];
+    const el = document.createElement('div');
+    el.className = 'wp-day';
+    el.innerHTML = `
+      <div class="wp-day-name">${days[d.getDay()]}</div>
+      <div class="wp-day-icon">${WP_WEATHER_ICON[code] || '🌡'}</div>
+      <div class="wp-day-max">${Math.round(data.daily.temperature_2m_max[i])}°</div>
+      <div class="wp-day-min">${Math.round(data.daily.temperature_2m_min[i])}°</div>
+      <div class="wp-day-rain">💧 ${Math.round(data.daily.precipitation_probability_max[i] || 0)}%</div>`;
+    grid.appendChild(el);
+  });
+}
+
+function renderSatImages() {
+  const grid = document.getElementById('wp-sat-grid');
+  grid.innerHTML = '';
+  const ts = new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+  WP_SAT_SOURCES.forEach(src => {
+    const card = document.createElement('div');
+    card.className = 'wp-img-card';
+    const cacheBust = `?cb=${Date.now()}`;
+    card.innerHTML = `
+      <div class="wp-img-label">${src.label}</div>
+      <div class="wp-img-ts">${src.ts}</div>
+      <img src="${src.url}${cacheBust}" alt="${src.label}" onerror="this.parentElement.innerHTML='<div class=\\'wp-img-err\\'>⚠️ Imagen no disponible en este momento.<br>Las imágenes del SMN pueden estar temporalmente fuera de servicio.</div>'"/>
+      <button class="wp-img-refresh" onclick="refreshSatImage(this, '${src.url}')">↻ Refrescar</button>`;
+    grid.appendChild(card);
+  });
+}
+
+function refreshSatImage(btn, baseUrl) {
+  const img = btn.previousElementSibling;
+  if (img && img.tagName === 'IMG') {
+    img.src = baseUrl + '?cb=' + Date.now();
+    btn.textContent = '⏳';
+    img.onload = () => { btn.textContent = '↻ Refrescar'; };
+    img.onerror = () => { btn.textContent = '↻ Refrescar'; };
+  }
+}
+
+// ── Análisis IA: datos numéricos ──────────────────────────
+async function analyzeWeatherText() {
+  if (!wpWeatherData) { wpShowError('Primero buscá una ciudad'); return; }
+  switchWpTab(document.querySelector('[data-tab="wp-ai-sec"]'));
+
+  const box = document.getElementById('wp-ai-box');
+  box.className = 'wp-ai-box loading';
+  box.innerHTML = '<span class="wp-spinner"></span>Analizando condiciones meteorológicas…';
+
+  const c = wpWeatherData.current;
+  const daily = wpWeatherData.daily;
+  const code  = c.weather_code;
+  const forecastLines = (daily.time || []).map((d,i) =>
+    `  ${d}: ${WP_WEATHER_CODES[daily.weather_code[i]]||'?'}, máx ${Math.round(daily.temperature_2m_max[i])}°C / mín ${Math.round(daily.temperature_2m_min[i])}°C, prob lluvia ${daily.precipitation_probability_max[i]||0}%`
+  ).join('\n');
+
+  const prompt = `Sos un meteorólogo experto. Analizá los siguientes datos meteorológicos actuales y el pronóstico de los próximos 7 días para ${wpWeatherData.locationName} (lat ${wpWeatherData.lat?.toFixed(2)}, lon ${wpWeatherData.lon?.toFixed(2)}) y elaborá un análisis en español rioplatense, claro y didáctico. Incluí: condición actual, interpretación de los parámetros relevantes (sensación térmica, viento, presión, UV), tendencia general de la semana, y recomendaciones prácticas.
+
+DATOS ACTUALES:
+- Temperatura: ${Math.round(c.temperature_2m)}°C (sensación: ${Math.round(c.apparent_temperature)}°C)
+- Condición: ${WP_WEATHER_CODES[code] || code}
+- Humedad: ${c.relative_humidity_2m}%
+- Viento: ${Math.round(c.wind_speed_10m)} km/h (${windDir(c.wind_direction_10m)})
+- Lluvia última hora: ${(c.precipitation||0).toFixed(1)} mm
+- Presión: ${Math.round(c.surface_pressure||0)} hPa
+- Índice UV: ${c.uv_index ?? '—'}
+
+PRONÓSTICO 7 DÍAS:
+${forecastLines}
+
+Respondé en español rioplatense. Sé concreto y útil, no genérico.`;
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    box.className = 'wp-ai-box';
+    if (!res.ok || data.error) {
+      box.innerHTML = `⚠️ Error: ${escapeHtml(data.error || 'Sin respuesta del servidor.')}`;
+    } else {
+      box.innerHTML = renderMarkdownBody(data.reply);
+    }
+  } catch(err) {
+    box.className = 'wp-ai-box';
+    box.innerHTML = '⚠️ No se pudo conectar al servidor.';
+  }
+}
+
+// ── Análisis IA: imágenes satelitales ────────────────────
+async function analyzeWeatherImages() {
+  switchWpTab(document.querySelector('[data-tab="wp-ai-sec"]'));
+  const box = document.getElementById('wp-ai-box');
+  box.className = 'wp-ai-box loading';
+  box.innerHTML = '<span class="wp-spinner"></span>Descargando imágenes y analizando…';
+
+  // Convertimos las 2 primeras imágenes a base64 para mandárselas al modelo de visión
+  async function imgToBase64(url) {
+    try {
+      // Las imágenes del SMN/NOAA no tienen CORS, así que las pedimos via proxy canvas
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url + '?cb=' + Date.now())}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch(_) { return null; }
+  }
+
+  const sources = WP_SAT_SOURCES.slice(0, 4);
+  const images  = (await Promise.all(sources.map(s => imgToBase64(s.url)))).filter(Boolean);
+
+  if (!images.length) {
+    box.className = 'wp-ai-box';
+    box.innerHTML = '⚠️ No se pudieron obtener las imágenes satelitales. Las fuentes pueden estar temporalmente no disponibles. Usá el botón "Analizar condiciones actuales" en su lugar.';
+    return;
+  }
+
+  const locCtx = wpWeatherData
+    ? ` La ubicación de referencia es ${wpWeatherData.locationName} (lat ${wpWeatherData.lat?.toFixed(2)}, lon ${wpWeatherData.lon?.toFixed(2)}).`
+    : '';
+
+  const content = [
+    ...images.map((dataUrl, i) => ({
+      type: 'image_url',
+      image_url: { url: dataUrl }
+    })),
+    {
+      type: 'text',
+      text: `Estas son imágenes meteorológicas satelitales e IR de Sudamérica y radar nacional de Argentina.${locCtx} Analizalas en español rioplatense: describí los sistemas de nubosidad visibles, frentes, zonas de lluvia o convección, y elaborá un pronóstico a corto plazo (próximas 6–12 horas) para la región. Sé técnico pero claro.`
+    }
+  ];
+
+  try {
+    const res  = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content }], hasImages: true })
+    });
+    const data = await res.json();
+    box.className = 'wp-ai-box';
+    if (!res.ok || data.error) {
+      box.innerHTML = `⚠️ Error: ${escapeHtml(data.error || 'Sin respuesta.')}`;
+    } else {
+      box.innerHTML = renderMarkdownBody(data.reply);
+    }
+  } catch(err) {
+    box.className = 'wp-ai-box';
+    box.innerHTML = '⚠️ No se pudo conectar al servidor.';
+  }
+}
+
+// ── Instructivo / Ayuda ───────────────────────────────
+function openHelp() {
+  document.getElementById('help-overlay').classList.remove('hidden');
+}
+function closeHelp() {
+  document.getElementById('help-overlay').classList.add('hidden');
+}
+function helpToggleShow(cb) {
+  localStorage.setItem('eterneura_help_skip', cb.checked ? '1' : '');
+}
+function initHelp() {
+  const skip = localStorage.getItem('eterneura_help_skip');
+  if (!skip) openHelp();
+}
+// ══ /Instructivo ══════════════════════════════════════
+
+// ══ /Panel Clima ══════════════════════════════════════════
+
+// ── Web Search: filtro de texto de proceso ────────────
+function stripSearchProcess(text) {
+  const lines = text.split('\n');
+  const filtered = lines.filter(line => {
+    const l = line.trim().toLowerCase();
+    if (l.includes('estoy esperando los resultado')) return false;
+    if (l.includes('esperando result')) return false;
+    if (l.startsWith('resultados de la b\u00fasqueda:')) return false;
+    if (l.startsWith('resultados de la busqueda:')) return false;
+    if (/^voy a (realizar|hacer|efectuar) una b/.test(l)) return false;
+    if (/^para (obtener|conseguir).{0,40}voy a/.test(l)) return false;
+    if (/^(pity,?\s*)?para mantenerte actuali/.test(l)) return false;
+    if (/^buscando en internet/.test(l)) return false;
+    return true;
+  });
+  return filtered.join('\n').replace(/^`[^`\n]{3,100}`$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+// ── Shazam ────────────────────────────────────────────
+let lastShazamResult = null;
+function openShazamModal(){resetShazam();document.getElementById('shazam-modal').classList.add('open');}
+function closeShazamModal(){document.getElementById('shazam-modal').classList.remove('open');}
+function resetShazam(){
+  document.getElementById('shazam-drop').style.display='';
+  document.getElementById('shazam-loading').style.display='none';
+  document.getElementById('shazam-result-wrap').style.display='none';
+  document.getElementById('shazam-err').style.display='none';
+  document.getElementById('shazam-audio-input').value='';
+  lastShazamResult=null;
+}
+function onDropShazam(e){
+  e.preventDefault();
+  document.getElementById('shazam-drop').classList.remove('drag-over');
+  const file=e.dataTransfer?.files?.[0];
+  if(file)handleShazamFile(file);
+}
+async function handleShazamFile(file){
+  if(!file)return;
+  if(file.size>10*1024*1024){showShazamErr('Archivo demasiado grande (máx 10 MB).');return;}
+  document.getElementById('shazam-drop').style.display='none';
+  document.getElementById('shazam-loading').style.display='block';
+  document.getElementById('shazam-result-wrap').style.display='none';
+  document.getElementById('shazam-err').style.display='none';
+  const base64=await new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('No se pudo leer el archivo.'));
+    r.readAsDataURL(file);
+  }).catch(err=>{showShazamErr(err.message);return null;});
+  if(!base64)return;
+  try{
+    const resp=await fetch('/api/shazam',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audioBase64:base64,mimeType:file.type||'audio/mpeg'})});
+    const data=await resp.json();
+    document.getElementById('shazam-loading').style.display='none';
+    if(!resp.ok||data.error){showShazamErr(data.error||'Error desconocido.');return;}
+    if(!data.found){showShazamErr('No se pudo identificar. Probá con 10–20 segundos donde suene la melodía.');document.getElementById('shazam-drop').style.display='';return;}
+    lastShazamResult=data;renderShazamResult(data);
+  }catch(err){document.getElementById('shazam-loading').style.display='none';showShazamErr('No se pudo conectar.');}
+}
+function renderShazamResult(data){
+  const score=data.score||0,confCls=score>=80?'high':'mid',confLbl=score>=80?'Alta confianza':'Confianza media';
+  const meta=[];if(data.album)meta.push('Álbum: '+data.album);if(data.year)meta.push(data.year);if(data.genre)meta.push(data.genre);
+  document.getElementById('shazam-result-inner').innerHTML=`<div class="shazam-result"><div class="shazam-result-icon">🎵</div><div class="shazam-result-info"><div class="shazam-result-title">${escapeHtml(data.title)}</div><div class="shazam-result-artist">${escapeHtml(data.artist)}</div><div class="shazam-result-meta">${escapeHtml(meta.join(' · '))}</div>${score?`<span class="shazam-confidence ${confCls}">${confLbl} (${score.toFixed(0)}%)</span>`:''}</div></div>`;
+  document.getElementById('shazam-result-wrap').style.display='block';
+}
+function showShazamErr(msg){const el=document.getElementById('shazam-err');el.textContent='⚠️ '+msg;el.style.display='block';document.getElementById('shazam-loading').style.display='none';document.getElementById('shazam-drop').style.display='';}
+function shazamSearchYouTube(){if(!lastShazamResult)return;window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(lastShazamResult.title+' '+lastShazamResult.artist),'_blank');}
+function shazamSearchSpotify(){if(!lastShazamResult)return;window.open('https://open.spotify.com/search/'+encodeURIComponent(lastShazamResult.title+' '+lastShazamResult.artist),'_blank');}
+function shazamAskAI(){
+  if(!lastShazamResult)return;
+  const{title,artist,album,year,genre}=lastShazamResult;
+  const parts=['"'+title+'" de '+artist];
+  if(album)parts.push('álbum: '+album);if(year)parts.push('año: '+year);if(genre)parts.push('género: '+genre);
+  closeShazamModal();
+  sendMessage('Contame sobre la canción '+parts.join(', ')+': historia, contexto, curiosidades y significado.');
+}
+// ══ /Shazam ═══════════════════════════════════════════
+
 </script>
 </body>
 </html>
- 
