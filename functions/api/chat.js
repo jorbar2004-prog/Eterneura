@@ -41,14 +41,15 @@ const WEB_SEARCH_TOOL = {
 };
 
 async function serperSearch(apiKey, query) {
-  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=6&search_lang=es&ui_lang=es-AR&country=AR`;
-  const res  = await fetch(url, {
-    headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey }
+  const res = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
+    headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 6 })
   });
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.web?.results || []).map(r => ({
-    title: r.title || '', url: r.url || '', description: r.description || ''
+  return (data.organic || []).map(r => ({
+    title: r.title || '', url: r.link || '', description: r.snippet || ''
   }));
 }
 
@@ -85,13 +86,13 @@ async function callOpenRouter(apiKey, model, messages, tools) {
   return { ok: res.ok, status: res.status, data };
 }
 
-async function callWithSearch(callFn, messages, braveKey) {
-  const tools  = braveKey ? [WEB_SEARCH_TOOL] : [];
+async function callWithSearch(callFn, messages, serperKey) {
+  const tools  = serperKey ? [WEB_SEARCH_TOOL] : [];
   const result = await callFn(messages, tools);
   if (!result.ok) return result;
 
   const choice = result.data.choices?.[0];
-  if (choice?.finish_reason === 'tool_calls' && braveKey) {
+  if (choice?.finish_reason === 'tool_calls' && serperKey) {
     const toolCalls    = choice.message?.tool_calls || [];
     const assistantMsg = choice.message;
 
@@ -99,7 +100,7 @@ async function callWithSearch(callFn, messages, braveKey) {
       toolCalls.map(async tc => {
         let query = '';
         try { query = JSON.parse(tc.function.arguments).query || ''; } catch {}
-        const results = query ? await serperSearch(braveKey, query) : [];
+        const results = query ? await serperSearch(serperKey, query) : [];
         return { role: 'tool', tool_call_id: tc.id, name: 'web_search', content: formatSearchResults(results, query) };
       })
     );
@@ -122,7 +123,7 @@ export async function onRequestPost(context) {
 
   const groqKey  = context.env.GROQ_API_KEY;
   const orKey    = context.env.OPENROUTER_API_KEY;
-  const braveKey = context.env.SERPER_API_KEY;
+  const serperKey = context.env.SERPER_API_KEY;
 
   if (!groqKey && !orKey) return jsonRes(500, { error: 'No hay ninguna API key configurada.' });
 
@@ -155,7 +156,7 @@ export async function onRequestPost(context) {
   if (groqKey) {
     for (const model of GROQ_MODELS) {
       let result;
-      try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), messages, braveKey); }
+      try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), messages, serperKey); }
       catch (err) { lastError = 'Groq: ' + err.message; continue; }
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
@@ -169,7 +170,7 @@ export async function onRequestPost(context) {
   if (orKey) {
     for (const model of OPENROUTER_MODELS) {
       let result;
-      try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), messages, braveKey); }
+      try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), messages, serperKey); }
       catch (err) { lastError = 'OR: ' + err.message; continue; }
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
