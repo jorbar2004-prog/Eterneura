@@ -8,24 +8,24 @@
 //           tool-use → búsqueda → segunda llamada al modelo con resultados.
 
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama3-70b-8192',
-  'mixtral-8x7b-32768'
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.6-27b'
 ];
 
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
-  'meta-llama/llama-4-maverick:free',
-  'deepseek/deepseek-chat:free',
-  'qwen/qwen-2.5-72b-instruct:free',
-  'mistralai/mistral-7b-instruct:free'
+  'google/gemma-4-31b-it:free',
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'openai/gpt-oss-20b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free'
 ];
 
 const OPENROUTER_VISION_MODELS = [
-  'qwen/qwen2.5-vl-72b-instruct:free',
-  'qwen/qwen2.5-vl-32b-instruct:free',
-  'meta-llama/llama-3.2-11b-vision-instruct:free',
-  'google/gemma-3-27b-it:free'
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'openrouter/free'
 ];
 
 // Definición de la tool de búsqueda web (formato OpenAI tool_use)
