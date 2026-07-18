@@ -12,7 +12,11 @@ const OPENROUTER_MODELS = [
   'google/gemma-4-31b-it:free',
   'qwen/qwen3-next-80b-a3b-instruct:free',
   'openai/gpt-oss-20b:free',
-  'nvidia/nemotron-3-super-120b-a12b:free'
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  // Verificados vivos en openrouter.ai/api/v1/models el 18/07/2026 — capa extra de fallback
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'poolside/laguna-m.1:free',
+  'cohere/north-mini-code:free'
 ];
 
 const OPENROUTER_VISION_MODELS = [
