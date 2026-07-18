@@ -1,11 +1,5 @@
-// Netlify Function — /api/chat
-//
-// ── Motores de IA ──
-// Texto:    1) Groq (llama-3.3-70b-versatile, etc.)   2) OpenRouter (respaldo)
-// Visión:   OpenRouter (modelos gratuitos con visión)
-// Búsqueda: Brave Search API (SERPER_API_KEY) — se activa automáticamente cuando
-//           el modelo necesita información actual. El backend orquesta el ciclo
-//           tool-use → búsqueda → segunda llamada al modelo con resultados.
+// Netlify Function — /api/chat (o /.netlify/functions/chat)
+// Igual que la versión Cloudflare Pages pero usando el runtime de Netlify Functions.
 
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
@@ -18,7 +12,11 @@ const OPENROUTER_MODELS = [
   'google/gemma-4-31b-it:free',
   'qwen/qwen3-next-80b-a3b-instruct:free',
   'openai/gpt-oss-20b:free',
-  'nvidia/nemotron-3-super-120b-a12b:free'
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  // Verificados vivos en openrouter.ai/api/v1/models el 18/07/2026 — capa extra de fallback
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'poolside/laguna-m.1:free',
+  'cohere/north-mini-code:free'
 ];
 
 const OPENROUTER_VISION_MODELS = [
@@ -28,18 +26,17 @@ const OPENROUTER_VISION_MODELS = [
   'openrouter/free'
 ];
 
-// Definición de la tool de búsqueda web (formato OpenAI tool_use)
 const WEB_SEARCH_TOOL = {
   type: 'function',
   function: {
     name: 'web_search',
-    description: 'Busca información actual en internet. Usá esta tool cuando necesites datos recientes, noticias, hechos que puedan haber cambiado, o cualquier cosa que no tengas seguridad de conocer con certeza. Devuelve los títulos, URLs y descripciones de los resultados más relevantes.',
+    description: 'Busca información actual en internet. Usá esta tool cuando necesites datos recientes, noticias, hechos que puedan haber cambiado, o cualquier cosa que no tengas seguridad de conocer con certeza.',
     parameters: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'La consulta de búsqueda en el idioma más apropiado (español para temas locales/argentinos, inglés para temas técnicos o internacionales).'
+          description: 'La consulta de búsqueda en el idioma más apropiado.'
         }
       },
       required: ['query']
@@ -50,27 +47,20 @@ const WEB_SEARCH_TOOL = {
 async function serperSearch(apiKey, query) {
   const res = await fetch('https://google.serper.dev/search', {
     method: 'POST',
-    headers: {
-      'X-API-KEY': apiKey,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 6 })
   });
   if (!res.ok) return [];
   const data = await res.json();
   return (data.organic || []).map(r => ({
-    title:       r.title   || '',
-    url:         r.link    || '',
-    description: r.snippet || ''
+    title: r.title || '', url: r.link || '', description: r.snippet || ''
   }));
 }
 
 function formatSearchResults(results, query) {
   if (!results.length) return `No se encontraron resultados para: "${query}".`;
   return `Resultados de búsqueda web para "${query}":\n\n` +
-    results.map((r, i) =>
-      `${i + 1}. **${r.title}**\n   ${r.description}\n   Fuente: ${r.url}`
-    ).join('\n\n');
+    results.map((r, i) => `${i + 1}. **${r.title}**\n   ${r.description}\n   Fuente: ${r.url}`).join('\n\n');
 }
 
 async function callGroq(apiKey, model, messages, tools) {
@@ -91,10 +81,8 @@ async function callOpenRouter(apiKey, model, messages, tools) {
   const res  = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eterneura.netlify.app',
-      'X-Title': 'Eterneura'
+      'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://eterneura.pages.dev', 'X-Title': 'Eterneura'
     },
     body: JSON.stringify(body)
   });
@@ -102,85 +90,66 @@ async function callOpenRouter(apiKey, model, messages, tools) {
   return { ok: res.ok, status: res.status, data };
 }
 
-// Llama al modelo y si pide web_search, ejecuta la búsqueda y hace una segunda
-// llamada con los resultados. Máximo 2 rondas de tool-use para no exceder latencia.
-async function callWithSearch(callFn, messages, braveKey) {
-  const tools    = braveKey ? [WEB_SEARCH_TOOL] : [];
-  const result   = await callFn(messages, tools);
+async function callWithSearch(callFn, messages, serperKey) {
+  const tools  = serperKey ? [WEB_SEARCH_TOOL] : [];
+  const result = await callFn(messages, tools);
   if (!result.ok) return result;
 
-  const choice   = result.data.choices?.[0];
-  const finish   = choice?.finish_reason;
-
-  // Si el modelo pidió usar la tool de búsqueda
-  if (finish === 'tool_calls' && braveKey) {
-    const toolCalls = choice.message?.tool_calls || [];
+  const choice = result.data.choices?.[0];
+  if (choice?.finish_reason === 'tool_calls' && serperKey) {
+    const toolCalls    = choice.message?.tool_calls || [];
     const assistantMsg = choice.message;
 
-    // Ejecutar todas las búsquedas pedidas (normalmente 1)
     const toolResults = await Promise.all(
       toolCalls.map(async tc => {
         let query = '';
         try { query = JSON.parse(tc.function.arguments).query || ''; } catch {}
-        const results = query ? await serperSearch(braveKey, query) : [];
-        return {
-          role: 'tool',
-          tool_call_id: tc.id,
-          name: 'web_search',
-          content: formatSearchResults(results, query)
-        };
+        const results = query ? await serperSearch(serperKey, query) : [];
+        return { role: 'tool', tool_call_id: tc.id, name: 'web_search', content: formatSearchResults(results, query) };
       })
     );
 
-    // Segunda llamada: modelo + historial + resultado de la búsqueda
     const msgs2   = [...messages, assistantMsg, ...toolResults];
-    const result2 = await callFn(msgs2, []); // sin tools para evitar bucle
+    const result2 = await callFn(msgs2, []);
     return result2;
   }
-
   return result;
 }
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
-  if (event.httpMethod !== 'POST')    return { statusCode: 405, body: 'Method Not Allowed' };
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: cors, body: '' };
+  }
 
-  const groqKey  = process.env.GROQ_API_KEY;
-  const orKey    = process.env.OPENROUTER_API_KEY;
-  const braveKey = process.env.SERPER_API_KEY;
-
-  if (!groqKey && !orKey) return {
-    statusCode: 500,
+  const jsonRes = (statusCode, obj) => ({
+    statusCode,
     headers: { 'Content-Type': 'application/json', ...cors },
-    body: JSON.stringify({ error: 'No hay ninguna API key configurada.' })
-  };
+    body: JSON.stringify(obj)
+  });
+
+  const groqKey   = process.env.GROQ_API_KEY;
+  const orKey     = process.env.OPENROUTER_API_KEY;
+  const serperKey = process.env.SERPER_API_KEY;
+
+  if (!groqKey && !orKey) return jsonRes(500, { error: 'No hay ninguna API key configurada.' });
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'JSON inválido' }) }; }
+  try { body = JSON.parse(event.body); }
+  catch { return jsonRes(400, { error: 'JSON inválido' }); }
 
   const { messages, hasImages } = body;
-  if (!messages?.length) return {
-    statusCode: 400,
-    headers: { 'Content-Type': 'application/json', ...cors },
-    body: JSON.stringify({ error: 'Falta messages' })
-  };
+  if (!messages?.length) return jsonRes(400, { error: 'Falta messages' });
 
-  if (hasImages && !orKey) return {
-    statusCode: 500,
-    headers: { 'Content-Type': 'application/json', ...cors },
-    body: JSON.stringify({ error: 'El análisis de imágenes requiere OPENROUTER_API_KEY.' })
-  };
+  if (hasImages && !orKey) return jsonRes(500, { error: 'El análisis de imágenes requiere OPENROUTER_API_KEY.' });
 
   let lastError = null;
 
-  // ── Visión: directo a OpenRouter ──
   if (hasImages) {
     for (const model of OPENROUTER_VISION_MODELS) {
       let result;
@@ -188,59 +157,41 @@ exports.handler = async (event) => {
       catch (err) { lastError = err.message; continue; }
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return { statusCode: 200, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ reply }) };
+        return jsonRes(200, { reply });
       }
-      lastError = result.data.error?.message || `OpenRouter ${result.status}`;
+      lastError = result.data.error?.message || `OR ${result.status}`;
       if (result.status !== 429 && result.status !== 404) break;
     }
-    return { statusCode: 429, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ error: 'Modelos de visión saturados. Intentá de nuevo. (' + lastError + ')' }) };
+    return jsonRes(429, { error: 'Modelos de visión saturados. (' + lastError + ')' });
   }
 
-  // ── Texto: Groq primero (con web search si hay SERPER_API_KEY) ──
   if (groqKey) {
     for (const model of GROQ_MODELS) {
       let result;
-      try {
-        result = await callWithSearch(
-          (msgs, tools) => callGroq(groqKey, model, msgs, tools),
-          messages,
-          braveKey
-        );
-      } catch (err) { lastError = 'Groq: ' + err.message; continue; }
-
+      try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), messages, serperKey); }
+      catch (err) { lastError = 'Groq: ' + err.message; continue; }
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return { statusCode: 200, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ reply }) };
+        return jsonRes(200, { reply });
       }
       lastError = result.data.error?.message || `Groq ${result.status} (${model})`;
       if (result.status !== 429 && result.status !== 404) break;
     }
   }
 
-  // ── Texto: OpenRouter como respaldo ──
   if (orKey) {
     for (const model of OPENROUTER_MODELS) {
       let result;
-      try {
-        result = await callWithSearch(
-          (msgs, tools) => callOpenRouter(orKey, model, msgs, tools),
-          messages,
-          braveKey
-        );
-      } catch (err) { lastError = 'OpenRouter: ' + err.message; continue; }
-
+      try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), messages, serperKey); }
+      catch (err) { lastError = 'OR: ' + err.message; continue; }
       if (result.ok) {
         const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return { statusCode: 200, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify({ reply }) };
+        return jsonRes(200, { reply });
       }
-      lastError = result.data.error?.message || `OpenRouter ${result.status} (${model})`;
+      lastError = result.data.error?.message || `OR ${result.status} (${model})`;
       if (result.status !== 429 && result.status !== 404) break;
     }
   }
 
-  return {
-    statusCode: 429,
-    headers: { 'Content-Type': 'application/json', ...cors },
-    body: JSON.stringify({ error: 'Todos los motores gratuitos están saturados. Intentá en unos minutos. (' + lastError + ')' })
-  };
+  return jsonRes(429, { error: 'Todos los motores están saturados. (' + lastError + ')' });
 };
