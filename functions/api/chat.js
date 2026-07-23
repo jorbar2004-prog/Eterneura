@@ -1,13 +1,16 @@
 // Cloudflare Pages Function — /api/chat
 // Igual que la versión Netlify pero usando la API de Cloudflare Workers.
+// Actualizado: se suma Kimi K2 (Moonshot AI) como primera opción en ambos waterfalls.
 
 const GROQ_MODELS = [
+  'moonshotai/kimi-k2-instruct-0905', // Kimi K2 — fuerte en razonamiento/agentic, 256K contexto, 1000 req/día gratis
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
   'qwen/qwen3.6-27b'
 ];
 
 const OPENROUTER_MODELS = [
+  'moonshotai/kimi-k2.6:free', // Kimi K2.6 — multimodal, coding y orquestación multiagente, gratis en OpenRouter
   'meta-llama/llama-3.3-70b-instruct:free',
   'google/gemma-4-31b-it:free',
   'qwen/qwen3-next-80b-a3b-instruct:free',
