@@ -696,7 +696,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .mode-btn { font-size: 10.5px; }
   .pp-stat-val { font-size: 20px; }
 }
-}
+
 
 /* ── Mapa de conocimiento: lista lateral de temas ── */
 .kmap-topic-item { display:flex; align-items:center; gap:8px; padding:7px 4px; border-bottom:1px solid var(--border); }
@@ -756,6 +756,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .help-modal h2 { font-size:18px; }
 }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -1444,6 +1445,113 @@ IMPORTANTE — información en tiempo real:
 Para todo lo demás: respondés directamente, con confianza, en español rioplatense (vos, ustedes). Sos cálido, directo y genuinamente útil. Cuando el tema da para un estudio más profundo, podés sugerirlo, pero sin forzarlo.`
 };
 
+
+// ══ Storage seguro con manejo de quota ═════════════════
+const STORAGE_PREFIX = 'ea_';
+const MAX_STORAGE_SIZE = 4.5 * 1024 * 1024;
+
+const safeStorage = {
+  get(key, defaultValue = null) {
+    try {
+      const raw = localStorage.getItem(STORAGE_PREFIX + key);
+      return raw ? JSON.parse(raw) : defaultValue;
+    } catch (e) {
+      console.warn(`Storage read error for ${key}:`, e);
+      return defaultValue;
+    }
+  },
+
+  set(key, value, options = {}) {
+    const { stripImages = false, maxRetries = 3 } = options;
+    let data = value;
+
+    if (stripImages && typeof value === 'object') {
+      data = deepStripImages(value);
+    }
+
+    const serialized = JSON.stringify(data);
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        localStorage.setItem(STORAGE_PREFIX + key, serialized);
+        return true;
+      } catch (e) {
+        if (e.name === 'QuotaExceededError' || e.code === 22) {
+          if (!this._cleanup(attempt === maxRetries - 1)) {
+            break;
+          }
+        } else {
+          console.error(`Storage write error for ${key}:`, e);
+          return false;
+        }
+      }
+    }
+
+    try {
+      const minimal = { _truncated: true, _error: 'QuotaExceeded', _date: new Date().toISOString() };
+      localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(minimal));
+    } catch (_) {}
+
+    showToast('⚠️ Almacenamiento lleno. Algunos datos no se guardaron.');
+    return false;
+  },
+
+  remove(key) {
+    try {
+      localStorage.removeItem(STORAGE_PREFIX + key);
+    } catch (e) {
+      console.warn(`Storage remove error for ${key}:`, e);
+    }
+  },
+
+  _cleanup(finalAttempt) {
+    const candidates = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(STORAGE_PREFIX)) {
+        try {
+          const item = JSON.parse(localStorage.getItem(k));
+          const age = item?._lastAccess ? Date.now() - new Date(item._lastAccess).getTime() : Infinity;
+          candidates.push({ key: k, age, size: localStorage.getItem(k).length });
+        } catch (_) {
+          candidates.push({ key: k, age: Infinity, size: localStorage.getItem(k).length });
+        }
+      }
+    }
+
+    if (!candidates.length) return false;
+
+    candidates.sort((a, b) => b.age - a.age);
+
+    const toDelete = finalAttempt ? candidates.slice(0, Math.ceil(candidates.length * 0.5))
+                                  : candidates.slice(0, 3);
+
+    toDelete.forEach(c => {
+      console.warn(`Storage cleanup: removing ${c.key} (${(c.size/1024).toFixed(1)}KB)`);
+      localStorage.removeItem(c.key);
+    });
+
+    return true;
+  }
+};
+
+function deepStripImages(obj) {
+  if (typeof obj === 'string') {
+    return obj.replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/g, '[imagen adjunta]');
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(deepStripImages);
+  }
+  if (obj && typeof obj === 'object') {
+    const result = {};
+    for (const [k, v] of Object.entries(obj)) {
+      result[k] = deepStripImages(v);
+    }
+    return result;
+  }
+  return obj;
+}
+
 // ── State ──────────────────────────────────────────────
 let mode           = 'socratic';
 let studentDocs    = [];
@@ -1477,10 +1585,8 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Profiles (multi-alumno) ─────────────────────────────
-function loadProfiles() {
-  try { return JSON.parse(localStorage.getItem('ea_profiles') || '[]'); } catch(_) { return []; }
-}
-function saveProfiles(list) { localStorage.setItem('ea_profiles', JSON.stringify(list)); }
+function loadProfiles() { return safeStorage.get('profiles', []); }
+function saveProfiles(list) { safeStorage.set('profiles', list); }
 function memoryKey(id)   { return 'ea_memory:' + id; }
 function settingsKey(id) { return 'ea_settings:' + id; }
 
@@ -1603,20 +1709,14 @@ function resetChatToWelcome() {
 }
 
 // ── Teacher config ─────────────────────────────────────
-function loadTeacherConfig() {
-  try {
-    return JSON.parse(localStorage.getItem('ea_teacher_cfg') || 'null') || defaultTeacherConfig();
-  } catch(_) { return defaultTeacherConfig(); }
-}
+function loadTeacherConfig() { return safeStorage.get('teacher_cfg', defaultTeacherConfig()); }
 
 function defaultTeacherConfig() {
   return { aiName:'Eterneura', subject:'', systemPrompt:'', defaultMode:'socratic',
            password:DEFAULT_PWD, teacherDocs:[] };
 }
 
-function saveTeacherConfigToStorage() {
-  localStorage.setItem('ea_teacher_cfg', JSON.stringify(teacherConfig));
-}
+function saveTeacherConfigToStorage() { safeStorage.set('teacher_cfg', teacherConfig); }
 
 function applyTeacherConfig() {
   teacherDocs = (teacherConfig.teacherDocs || []).map(d => ({ name:d.name, text:d.text }));
@@ -1797,8 +1897,7 @@ function importConfig(input) {
 // ── Student settings (por perfil) ───────────────────────
 function loadSettings() {
   if (!currentProfile) return;
-  let s = {};
-  try { s = JSON.parse(localStorage.getItem(settingsKey(currentProfile.id)) || '{}'); } catch(_) {}
+  const s = safeStorage.get('settings:' + currentProfile.id, {});
   mode = s.mode || teacherConfig.defaultMode || 'socratic';
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`[data-mode="${mode}"]`);
@@ -1829,12 +1928,10 @@ function updateSubjectHead() {
 
 // ── Student memory + Cognitive Profile (por perfil) ────
 function loadStudentMemoryFor(id) {
-  try {
-    const m = JSON.parse(localStorage.getItem(memoryKey(id)) || 'null');
-    if (!m) return defaultMemory();
-    if (!m.cognitiveProfile) m.cognitiveProfile = {};
-    return m;
-  } catch(_) { return defaultMemory(); }
+  const m = safeStorage.get('memory:' + id, null);
+  if (!m) return defaultMemory();
+  if (!m.cognitiveProfile) m.cognitiveProfile = {};
+  return m;
 }
 
 function defaultMemory() {
@@ -1843,7 +1940,7 @@ function defaultMemory() {
 
 function saveStudentMemory() {
   if (!currentProfile) return;
-  localStorage.setItem(memoryKey(currentProfile.id), JSON.stringify(memory));
+  safeStorage.set('memory:' + currentProfile.id, memory, { stripImages: true });
 }
 
 function bumpSession() {
@@ -2520,30 +2617,70 @@ function renderMarkdownBody(text) {
 
 // Sanitización básica de SVG generado por el modelo: solo permite el tag <svg>
 // y sus elementos gráficos internos habituales; remueve <script>, on*=, etc.
-function sanitizeSvg(raw) {
-  // Debe empezar con <svg ...> y terminar en </svg>; si no, lo descartamos.
-  const match = raw.match(/<svg[\s\S]*<\/svg>/i);
-  if (!match) return '';
-  let svg = match[0];
-  // Eliminar tags peligrosos
-  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '');
-  svg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '');
-  svg = svg.replace(/<style[\s\S]*?<\/style>/gi, '');
-  // Eliminar atributos de eventos (onclick, onload, etc.) y href javascript:
-  svg = svg.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
-  svg = svg.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
-  svg = svg.replace(/(xlink:href|href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
-  // Eliminar referencias a recursos externos (http/https) en href
-  svg = svg.replace(/(xlink:href|href)\s*=\s*["']https?:[^"']*["']/gi, '');
-  // Eliminar data: URIs en href (pueden contener HTML/JS embebido)
-  svg = svg.replace(/(xlink:href|href)\s*=\s*["']data:[^"']*["']/gi, '');
-  // Eliminar atributo filter con referencias externas
-  svg = svg.replace(/filter\s*=\s*["']url\([^)]*\)["']/gi, '');
-  return svg;
-}
+// ── Seguridad: sanitización de SVG ─────────────────────
+const SVG_ALLOWED_TAGS = new Set([
+  'svg','g','defs','linearGradient','radialGradient','stop',
+  'rect','circle','ellipse','line','polyline','polygon','path',
+  'text','tspan','textPath','title','desc',
+  'marker','pattern','clipPath','mask','filter',
+  'feGaussianBlur','feOffset','feBlend','feColorMatrix'
+]);
 
-function escapeHtml(t) {
-  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const SVG_ALLOWED_ATTRS = new Set([
+  'xmlns','viewBox','width','height','x','y','x1','y1','x2','y2',
+  'cx','cy','r','rx','ry','d','points','fill','stroke','stroke-width',
+  'stroke-linecap','stroke-linejoin','stroke-dasharray',
+  'opacity','fill-opacity','stroke-opacity',
+  'transform','rotate','scale','translate',
+  'font-family','font-size','font-weight','text-anchor','dominant-baseline',
+  'dx','dy','id','class','style','clip-path','mask','filter',
+  'marker-end','marker-start','marker-mid','orient',
+  'offset','stop-color','stop-opacity','gradientUnits','gradientTransform',
+  'spreadMethod','fx','fy','fr'
+]);
+
+const SVG_FORBIDDEN_ATTRS = /^\s*(on\w+|xmlns:xhtml|xlink:href|href|src|data|action|formaction)\s*$/i;
+
+function sanitizeSvg(raw) {
+  const match = raw.match(/<svg[\s\S]*?<\/svg>/i);
+  if (!match) return '';
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(match[0], 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+  if (!svg) return '';
+
+  const walker = document.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT);
+  const toRemove = [];
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const tag = node.tagName.toLowerCase();
+
+    if (!SVG_ALLOWED_TAGS.has(tag)) {
+      toRemove.push(node);
+      continue;
+    }
+
+    const attrs = Array.from(node.attributes);
+    for (const attr of attrs) {
+      const name = attr.name.toLowerCase();
+      if (SVG_FORBIDDEN_ATTRS.test(name) || !SVG_ALLOWED_ATTRS.has(name)) {
+        node.removeAttribute(attr.name);
+      }
+      if (name === 'style') {
+        const val = attr.value.toLowerCase();
+        if (/url\s*\(|expression\s*\(|javascript:|data:/.test(val)) {
+          node.removeAttribute('style');
+        }
+      }
+    }
+  }
+
+  toRemove.forEach(n => n.parentNode?.removeChild(n));
+
+  const serializer = new XMLSerializer();
+  return serializer.serializeToString(svg);
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -3036,10 +3173,8 @@ document.addEventListener('DOMContentLoaded', () => {
 const SESSIONS_KEY = 'ea_sessions';
 const MAX_SAVED_SESSIONS = 30;
 
-function loadSavedSessions() {
-  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch(_) { return []; }
-}
-function saveSavedSessions(list) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(list)); }
+function loadSavedSessions() { return safeStorage.get('sessions', []); }
+function saveSavedSessions(list) { safeStorage.set('sessions', list, { stripImages: true }); }
 
 function saveCurrentSession() {
   if (history.length < 2) { showToast('Conversá un poco antes de guardar'); return; }
