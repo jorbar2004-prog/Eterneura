@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1445,45 +1444,6 @@ IMPORTANTE — información en tiempo real:
 Para todo lo demás: respondés directamente, con confianza, en español rioplatense (vos, ustedes). Sos cálido, directo y genuinamente útil. Cuando el tema da para un estudio más profundo, podés sugerirlo, pero sin forzarlo.`
 };
 
-// ══ OCR (Tesseract.js) ═══════════════════════════════════
-let ocrWorker = null;
-let ocrReady = false;
-
-async function initOCR() {
-  if (ocrReady) return;
-  try {
-    if (typeof Tesseract === 'undefined') {
-      console.warn('Tesseract.js no cargado');
-      return;
-    }
-    ocrWorker = await Tesseract.createWorker('spa');
-    ocrReady = true;
-    console.log('✅ OCR listo');
-  } catch(e) {
-    console.warn('⚠️ OCR no disponible:', e);
-  }
-}
-
-async function extractTextFromImage(dataUrl) {
-  if (!ocrReady) await initOCR();
-  if (!ocrWorker) return null;
-  try {
-    const result = await ocrWorker.recognize(dataUrl);
-    return result.data.text?.trim() || null;
-  } catch(e) {
-    console.error('OCR error:', e);
-    return null;
-  }
-}
-
-function cleanupOCR() {
-  if (ocrWorker) {
-    ocrWorker.terminate();
-    ocrWorker = null;
-    ocrReady = false;
-  }
-}
-
 // ── State ──────────────────────────────────────────────
 let mode           = 'socratic';
 let studentDocs    = [];
@@ -1505,7 +1465,6 @@ let pickedColor = PROFILE_COLORS[0];
 window.addEventListener('DOMContentLoaded', () => {
   applyTeacherConfig();
   updateTeacherLibStatus();
-  initOCR(); // Precargar OCR en background
 
   const activeId = localStorage.getItem('ea_active_profile');
   const profiles = loadProfiles();
@@ -2088,22 +2047,8 @@ async function handleImageFiles(fileList) {
     }
     try {
       const dataUrl = await fileToDataUrl(file);
-
-      // Extraer texto OCR
-      let ocrText = null;
-      showToast('🔍 Extrayendo texto…');
-      ocrText = await extractTextFromImage(dataUrl);
-      if (ocrText) {
-        showToast(`✅ OCR: ${ocrText.slice(0, 40)}…`);
-      } else {
-        showToast('⚠️ No se detectó texto');
-      }
-
-      pendingImages.push({ name: file.name, dataUrl, ocrText });
-    } catch(e) { 
-      console.error('Error leyendo imagen', file.name, e);
-      showToast('❌ Error al procesar imagen');
-    }
+      pendingImages.push({ name: file.name, dataUrl });
+    } catch(e) { console.error('Error leyendo imagen', file.name, e); }
   }
 
   renderImagePreviews();
@@ -2121,14 +2066,11 @@ function fileToDataUrl(file) {
 
 function renderImagePreviews() {
   const row = document.getElementById('image-preview-row');
-  row.innerHTML = pendingImages.map((img, i) => {
-    const hasOcr = img.ocrText && img.ocrText.trim().length > 0;
-    return `<div class="img-thumb" style="position:relative">
+  row.innerHTML = pendingImages.map((img, i) => `
+    <div class="img-thumb">
       <img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">
-      ${hasOcr ? `<div style="position:absolute;bottom:2px;right:2px;background:var(--green);color:#0a0c11;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700">OCR</div>` : ''}
       <button class="img-thumb-rm" onclick="removePendingImage(${i})" title="Quitar">×</button>
-    </div>`;
-  }).join('');
+    </div>`).join('');
   document.getElementById('attach-img-btn').classList.toggle('has-images', pendingImages.length > 0);
 }
 
@@ -2327,27 +2269,10 @@ async function sendMessage(override) {
   if (!override) { input.value = ''; autoGrow(input); }
 
   // Build the current user message content: multimodal if images attached
-  // Incluir texto OCR como contexto adicional
-  let ocrContext = '';
-  if (imagesForThisMsg.length) {
-    const ocrTexts = imagesForThisMsg
-      .filter(img => img.ocrText)
-      .map((img, i) => `[Texto extraído de imagen ${i+1}]: ${img.ocrText}`);
-    if (ocrTexts.length) {
-      ocrContext = '
-
---- TEXTO EXTRAÍDO VIA OCR ---
-' + ocrTexts.join('
-') + '
---- FIN OCR ---
-';
-    }
-  }
-
   const userContent = imagesForThisMsg.length
     ? [
         ...imagesForThisMsg.map(img => ({ type: 'image_url', image_url: { url: img.dataUrl } })),
-        { type: 'text', text: (text || 'Analizá esta imagen en detalle.') + ocrContext }
+        { type: 'text', text: text || 'Analizá esta imagen en detalle.' }
       ]
     : text;
 
@@ -3824,8 +3749,6 @@ function shazamAskAI(){
 }
 // ══ /Shazam ═══════════════════════════════════════════
 
-
-window.addEventListener('beforeunload', cleanupOCR);
 </script>
 </body>
 </html>
