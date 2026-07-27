@@ -697,7 +697,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .mode-btn { font-size: 10.5px; }
   .pp-stat-val { font-size: 20px; }
 }
-
+}
 
 /* ── Mapa de conocimiento: lista lateral de temas ── */
 .kmap-topic-item { display:flex; align-items:center; gap:8px; padding:7px 4px; border-bottom:1px solid var(--border); }
@@ -757,7 +757,6 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .help-modal h2 { font-size:18px; }
 }
 </style>
-<base target="_blank">
 </head>
 <body>
 
@@ -1446,114 +1445,6 @@ IMPORTANTE — información en tiempo real:
 Para todo lo demás: respondés directamente, con confianza, en español rioplatense (vos, ustedes). Sos cálido, directo y genuinamente útil. Cuando el tema da para un estudio más profundo, podés sugerirlo, pero sin forzarlo.`
 };
 
-
-// ══ Storage seguro con manejo de quota ═════════════════
-const STORAGE_PREFIX = 'ea_';
-const MAX_STORAGE_SIZE = 4.5 * 1024 * 1024;
-
-const safeStorage = {
-  get(key, defaultValue = null) {
-    try {
-      const raw = localStorage.getItem(STORAGE_PREFIX + key);
-      return raw ? JSON.parse(raw) : defaultValue;
-    } catch (e) {
-      console.warn(`Storage read error for ${key}:`, e);
-      return defaultValue;
-    }
-  },
-
-  set(key, value, options = {}) {
-    const { stripImages = false, maxRetries = 3 } = options;
-    let data = value;
-
-    if (stripImages && typeof value === 'object') {
-      data = deepStripImages(value);
-    }
-
-    const serialized = JSON.stringify(data);
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        localStorage.setItem(STORAGE_PREFIX + key, serialized);
-        return true;
-      } catch (e) {
-        if (e.name === 'QuotaExceededError' || e.code === 22) {
-          if (!this._cleanup(attempt === maxRetries - 1)) {
-            break;
-          }
-        } else {
-          console.error(`Storage write error for ${key}:`, e);
-          return false;
-        }
-      }
-    }
-
-    try {
-      const minimal = { _truncated: true, _error: 'QuotaExceeded', _date: new Date().toISOString() };
-      localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(minimal));
-    } catch (_) {}
-
-    showToast('⚠️ Almacenamiento lleno. Algunos datos no se guardaron.');
-    return false;
-  },
-
-  remove(key) {
-    try {
-      localStorage.removeItem(STORAGE_PREFIX + key);
-    } catch (e) {
-      console.warn(`Storage remove error for ${key}:`, e);
-    }
-  },
-
-  _cleanup(finalAttempt) {
-    const candidates = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith(STORAGE_PREFIX)) {
-        try {
-          const item = JSON.parse(localStorage.getItem(k));
-          const age = item?._lastAccess ? Date.now() - new Date(item._lastAccess).getTime() : Infinity;
-          candidates.push({ key: k, age, size: localStorage.getItem(k).length });
-        } catch (_) {
-          candidates.push({ key: k, age: Infinity, size: localStorage.getItem(k).length });
-        }
-      }
-    }
-
-    if (!candidates.length) return false;
-
-    candidates.sort((a, b) => b.age - a.age);
-
-    const toDelete = finalAttempt ? candidates.slice(0, Math.ceil(candidates.length * 0.5))
-                                  : candidates.slice(0, 3);
-
-    toDelete.forEach(c => {
-      console.warn(`Storage cleanup: removing ${c.key} (${(c.size/1024).toFixed(1)}KB)`);
-      localStorage.removeItem(c.key);
-    });
-
-    return true;
-  }
-};
-
-function deepStripImages(obj) {
-  if (typeof obj === 'string') {
-    return obj.replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/g, '[imagen adjunta]');
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(deepStripImages);
-  }
-  if (obj && typeof obj === 'object') {
-    const result = {};
-    for (const [k, v] of Object.entries(obj)) {
-      result[k] = deepStripImages(v);
-    }
-    return result;
-  }
-  return obj;
-}
-
-
 // ══ OCR (Tesseract.js) ═══════════════════════════════════
 let ocrWorker = null;
 let ocrReady = false;
@@ -1561,9 +1452,13 @@ let ocrReady = false;
 async function initOCR() {
   if (ocrReady) return;
   try {
+    if (typeof Tesseract === 'undefined') {
+      console.warn('Tesseract.js no cargado');
+      return;
+    }
     ocrWorker = await Tesseract.createWorker('spa');
     ocrReady = true;
-    console.log('✅ OCR listo (español)');
+    console.log('✅ OCR listo');
   } catch(e) {
     console.warn('⚠️ OCR no disponible:', e);
   }
@@ -1572,7 +1467,6 @@ async function initOCR() {
 async function extractTextFromImage(dataUrl) {
   if (!ocrReady) await initOCR();
   if (!ocrWorker) return null;
-
   try {
     const result = await ocrWorker.recognize(dataUrl);
     return result.data.text?.trim() || null;
@@ -1613,7 +1507,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateTeacherLibStatus();
   initOCR(); // Precargar OCR en background
 
-  const activeId = safeStorage.get('active_profile', '');
+  const activeId = localStorage.getItem('ea_active_profile');
   const profiles = loadProfiles();
   const found = activeId && profiles.find(p => p.id === activeId);
   if (found) {
@@ -1624,8 +1518,10 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Profiles (multi-alumno) ─────────────────────────────
-function loadProfiles() { return safeStorage.get('profiles', []); }
-function saveProfiles(list) { safeStorage.set('profiles', list); }
+function loadProfiles() {
+  try { return JSON.parse(localStorage.getItem('ea_profiles') || '[]'); } catch(_) { return []; }
+}
+function saveProfiles(list) { localStorage.setItem('ea_profiles', JSON.stringify(list)); }
 function memoryKey(id)   { return 'ea_memory:' + id; }
 function settingsKey(id) { return 'ea_settings:' + id; }
 
@@ -1748,14 +1644,20 @@ function resetChatToWelcome() {
 }
 
 // ── Teacher config ─────────────────────────────────────
-function loadTeacherConfig() { return safeStorage.get('teacher_cfg', defaultTeacherConfig()); }
+function loadTeacherConfig() {
+  try {
+    return JSON.parse(localStorage.getItem('ea_teacher_cfg') || 'null') || defaultTeacherConfig();
+  } catch(_) { return defaultTeacherConfig(); }
+}
 
 function defaultTeacherConfig() {
   return { aiName:'Eterneura', subject:'', systemPrompt:'', defaultMode:'socratic',
            password:DEFAULT_PWD, teacherDocs:[] };
 }
 
-function saveTeacherConfigToStorage() { safeStorage.set('teacher_cfg', teacherConfig); }
+function saveTeacherConfigToStorage() {
+  localStorage.setItem('ea_teacher_cfg', JSON.stringify(teacherConfig));
+}
 
 function applyTeacherConfig() {
   teacherDocs = (teacherConfig.teacherDocs || []).map(d => ({ name:d.name, text:d.text }));
@@ -1936,7 +1838,8 @@ function importConfig(input) {
 // ── Student settings (por perfil) ───────────────────────
 function loadSettings() {
   if (!currentProfile) return;
-  const s = safeStorage.get('settings:' + currentProfile.id, {});
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(settingsKey(currentProfile.id)) || '{}'); } catch(_) {}
   mode = s.mode || teacherConfig.defaultMode || 'socratic';
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`[data-mode="${mode}"]`);
@@ -1967,10 +1870,12 @@ function updateSubjectHead() {
 
 // ── Student memory + Cognitive Profile (por perfil) ────
 function loadStudentMemoryFor(id) {
-  const m = safeStorage.get('memory:' + id, null);
-  if (!m) return defaultMemory();
-  if (!m.cognitiveProfile) m.cognitiveProfile = {};
-  return m;
+  try {
+    const m = JSON.parse(localStorage.getItem(memoryKey(id)) || 'null');
+    if (!m) return defaultMemory();
+    if (!m.cognitiveProfile) m.cognitiveProfile = {};
+    return m;
+  } catch(_) { return defaultMemory(); }
 }
 
 function defaultMemory() {
@@ -1979,7 +1884,7 @@ function defaultMemory() {
 
 function saveStudentMemory() {
   if (!currentProfile) return;
-  safeStorage.set('memory:' + currentProfile.id, memory, { stripImages: true });
+  localStorage.setItem(memoryKey(currentProfile.id), JSON.stringify(memory));
 }
 
 function bumpSession() {
@@ -2184,16 +2089,21 @@ async function handleImageFiles(fileList) {
     try {
       const dataUrl = await fileToDataUrl(file);
 
-      // Extraer texto OCR en paralelo (silencioso, no bloquea UI)
+      // Extraer texto OCR
       let ocrText = null;
-      if (mode === 'verifier') {
-        showToast('🔍 Extrayendo texto de la imagen…');
-        ocrText = await extractTextFromImage(dataUrl);
-        if (ocrText) showToast('✅ Texto extraído');
+      showToast('🔍 Extrayendo texto…');
+      ocrText = await extractTextFromImage(dataUrl);
+      if (ocrText) {
+        showToast(`✅ OCR: ${ocrText.slice(0, 40)}…`);
+      } else {
+        showToast('⚠️ No se detectó texto');
       }
 
       pendingImages.push({ name: file.name, dataUrl, ocrText });
-    } catch(e) { console.error('Error leyendo imagen', file.name, e); }
+    } catch(e) { 
+      console.error('Error leyendo imagen', file.name, e);
+      showToast('❌ Error al procesar imagen');
+    }
   }
 
   renderImagePreviews();
@@ -2211,12 +2121,14 @@ function fileToDataUrl(file) {
 
 function renderImagePreviews() {
   const row = document.getElementById('image-preview-row');
-  row.innerHTML = pendingImages.map((img, i) => `
-    <div class="img-thumb" style="position:relative">
+  row.innerHTML = pendingImages.map((img, i) => {
+    const hasOcr = img.ocrText && img.ocrText.trim().length > 0;
+    return `<div class="img-thumb" style="position:relative">
       <img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">
-      ${img.ocrText ? '<div style="position:absolute;bottom:2px;right:2px;background:var(--green);color:#0a0c11;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700">OCR</div>' : ''}
+      ${hasOcr ? `<div style="position:absolute;bottom:2px;right:2px;background:var(--green);color:#0a0c11;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700">OCR</div>` : ''}
       <button class="img-thumb-rm" onclick="removePendingImage(${i})" title="Quitar">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   document.getElementById('attach-img-btn').classList.toggle('has-images', pendingImages.length > 0);
 }
 
@@ -2415,7 +2327,7 @@ async function sendMessage(override) {
   if (!override) { input.value = ''; autoGrow(input); }
 
   // Build the current user message content: multimodal if images attached
-  // Si hay OCR disponible, lo incluimos como contexto adicional para el modelo
+  // Incluir texto OCR como contexto adicional
   let ocrContext = '';
   if (imagesForThisMsg.length) {
     const ocrTexts = imagesForThisMsg
@@ -2683,70 +2595,30 @@ function renderMarkdownBody(text) {
 
 // Sanitización básica de SVG generado por el modelo: solo permite el tag <svg>
 // y sus elementos gráficos internos habituales; remueve <script>, on*=, etc.
-// ── Seguridad: sanitización de SVG ─────────────────────
-const SVG_ALLOWED_TAGS = new Set([
-  'svg','g','defs','linearGradient','radialGradient','stop',
-  'rect','circle','ellipse','line','polyline','polygon','path',
-  'text','tspan','textPath','title','desc',
-  'marker','pattern','clipPath','mask','filter',
-  'feGaussianBlur','feOffset','feBlend','feColorMatrix'
-]);
-
-const SVG_ALLOWED_ATTRS = new Set([
-  'xmlns','viewBox','width','height','x','y','x1','y1','x2','y2',
-  'cx','cy','r','rx','ry','d','points','fill','stroke','stroke-width',
-  'stroke-linecap','stroke-linejoin','stroke-dasharray',
-  'opacity','fill-opacity','stroke-opacity',
-  'transform','rotate','scale','translate',
-  'font-family','font-size','font-weight','text-anchor','dominant-baseline',
-  'dx','dy','id','class','style','clip-path','mask','filter',
-  'marker-end','marker-start','marker-mid','orient',
-  'offset','stop-color','stop-opacity','gradientUnits','gradientTransform',
-  'spreadMethod','fx','fy','fr'
-]);
-
-const SVG_FORBIDDEN_ATTRS = /^\s*(on\w+|xmlns:xhtml|xlink:href|href|src|data|action|formaction)\s*$/i;
-
 function sanitizeSvg(raw) {
-  const match = raw.match(/<svg[\s\S]*?<\/svg>/i);
+  // Debe empezar con <svg ...> y terminar en </svg>; si no, lo descartamos.
+  const match = raw.match(/<svg[\s\S]*<\/svg>/i);
   if (!match) return '';
+  let svg = match[0];
+  // Eliminar tags peligrosos
+  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '');
+  svg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '');
+  svg = svg.replace(/<style[\s\S]*?<\/style>/gi, '');
+  // Eliminar atributos de eventos (onclick, onload, etc.) y href javascript:
+  svg = svg.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
+  svg = svg.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
+  // Eliminar referencias a recursos externos (http/https) en href
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']https?:[^"']*["']/gi, '');
+  // Eliminar data: URIs en href (pueden contener HTML/JS embebido)
+  svg = svg.replace(/(xlink:href|href)\s*=\s*["']data:[^"']*["']/gi, '');
+  // Eliminar atributo filter con referencias externas
+  svg = svg.replace(/filter\s*=\s*["']url\([^)]*\)["']/gi, '');
+  return svg;
+}
 
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(match[0], 'image/svg+xml');
-  const svg = doc.querySelector('svg');
-  if (!svg) return '';
-
-  const walker = document.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT);
-  const toRemove = [];
-
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    const tag = node.tagName.toLowerCase();
-
-    if (!SVG_ALLOWED_TAGS.has(tag)) {
-      toRemove.push(node);
-      continue;
-    }
-
-    const attrs = Array.from(node.attributes);
-    for (const attr of attrs) {
-      const name = attr.name.toLowerCase();
-      if (SVG_FORBIDDEN_ATTRS.test(name) || !SVG_ALLOWED_ATTRS.has(name)) {
-        node.removeAttribute(attr.name);
-      }
-      if (name === 'style') {
-        const val = attr.value.toLowerCase();
-        if (/url\s*\(|expression\s*\(|javascript:|data:/.test(val)) {
-          node.removeAttribute('style');
-        }
-      }
-    }
-  }
-
-  toRemove.forEach(n => n.parentNode?.removeChild(n));
-
-  const serializer = new XMLSerializer();
-  return serializer.serializeToString(svg);
+function escapeHtml(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -3239,8 +3111,10 @@ document.addEventListener('DOMContentLoaded', () => {
 const SESSIONS_KEY = 'ea_sessions';
 const MAX_SAVED_SESSIONS = 30;
 
-function loadSavedSessions() { return safeStorage.get('sessions', []); }
-function saveSavedSessions(list) { safeStorage.set('sessions', list, { stripImages: true }); }
+function loadSavedSessions() {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch(_) { return []; }
+}
+function saveSavedSessions(list) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(list)); }
 
 function saveCurrentSession() {
   if (history.length < 2) { showToast('Conversá un poco antes de guardar'); return; }
