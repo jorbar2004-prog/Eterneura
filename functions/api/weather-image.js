@@ -19,7 +19,13 @@ export async function onRequestGet({ request }) {
     const upstream = await fetch(src, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EterneuraBot/1.0)' }
     });
-    if (!upstream.ok) return new Response('Upstream error', { status: 502 });
+    if (!upstream.ok) {
+      const body = await upstream.text().catch(() => '');
+      return new Response(
+        `Upstream error: status=${upstream.status} statusText=${upstream.statusText} body_snippet=${body.slice(0, 200)}`,
+        { status: 502, headers: { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
 
     return new Response(upstream.body, {
       status: 200,
@@ -30,6 +36,9 @@ export async function onRequestGet({ request }) {
       }
     });
   } catch (e) {
-    return new Response('Fetch failed', { status: 502 });
+    return new Response(`Fetch failed: ${e.message || e}`, {
+      status: 502,
+      headers: { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' }
+    });
   }
 }
