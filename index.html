@@ -3505,7 +3505,7 @@ function renderForecast(data) {
       <div class="wp-day-icon">${WP_WEATHER_ICON[code] || '🌡'}</div>
       <div class="wp-day-max">${Math.round(data.daily.temperature_2m_max[i])}°</div>
       <div class="wp-day-min">${Math.round(data.daily.temperature_2m_min[i])}°</div>
-      <div class="wp-day-rain">💧 ${Math.round(data.daily.precipitation_probability_max[i] || 0)}%</div>`;
+      <div class="wp-day-rain">💧 ${Math.round(data.daily.precipitation_probability_max[i] || 0)}% · ${(data.daily.precipitation_sum[i] || 0).toFixed(1)}mm</div>`;
     grid.appendChild(el);
   });
 }
@@ -3517,11 +3517,11 @@ function renderSatImages() {
   WP_SAT_SOURCES.forEach(src => {
     const card = document.createElement('div');
     card.className = 'wp-img-card';
-    const cacheBust = `?cb=${Date.now()}`;
+    const proxiedSrc = `/api/weather-image?url=${encodeURIComponent(src.url)}&cb=${Date.now()}`;
     card.innerHTML = `
       <div class="wp-img-label">${src.label}</div>
       <div class="wp-img-ts">${src.ts}</div>
-      <img src="${src.url}${cacheBust}" alt="${src.label}" onerror="this.parentElement.innerHTML='<div class=\\'wp-img-err\\'>⚠️ Imagen no disponible en este momento.<br>Las imágenes del SMN pueden estar temporalmente fuera de servicio.</div>'"/>
+      <img src="${proxiedSrc}" alt="${src.label}" onerror="this.parentElement.innerHTML='<div class=\\'wp-img-err\\'>⚠️ Imagen no disponible en este momento.<br>Las imágenes del SMN pueden estar temporalmente fuera de servicio.</div>'"/>
       <button class="wp-img-refresh" onclick="refreshSatImage(this, '${src.url}')">↻ Refrescar</button>`;
     grid.appendChild(card);
   });
@@ -3530,7 +3530,7 @@ function renderSatImages() {
 function refreshSatImage(btn, baseUrl) {
   const img = btn.previousElementSibling;
   if (img && img.tagName === 'IMG') {
-    img.src = baseUrl + '?cb=' + Date.now();
+    img.src = `/api/weather-image?url=${encodeURIComponent(baseUrl)}&cb=${Date.now()}`;
     btn.textContent = '⏳';
     img.onload = () => { btn.textContent = '↻ Refrescar'; };
     img.onerror = () => { btn.textContent = '↻ Refrescar'; };
@@ -3550,7 +3550,7 @@ async function analyzeWeatherText() {
   const daily = wpWeatherData.daily;
   const code  = c.weather_code;
   const forecastLines = (daily.time || []).map((d,i) =>
-    `  ${d}: ${WP_WEATHER_CODES[daily.weather_code[i]]||'?'}, máx ${Math.round(daily.temperature_2m_max[i])}°C / mín ${Math.round(daily.temperature_2m_min[i])}°C, prob lluvia ${daily.precipitation_probability_max[i]||0}%`
+    `  ${d}: ${WP_WEATHER_CODES[daily.weather_code[i]]||'?'}, máx ${Math.round(daily.temperature_2m_max[i])}°C / mín ${Math.round(daily.temperature_2m_min[i])}°C, prob lluvia ${daily.precipitation_probability_max[i]||0}%, lluvia estimada ${(daily.precipitation_sum[i]||0).toFixed(1)}mm`
   ).join('\n');
 
   const prompt = `Sos un meteorólogo experto. Analizá los siguientes datos meteorológicos actuales y el pronóstico de los próximos 7 días para ${wpWeatherData.locationName} (lat ${wpWeatherData.lat?.toFixed(2)}, lon ${wpWeatherData.lon?.toFixed(2)}) y elaborá un análisis en español rioplatense, claro y didáctico. Incluí: condición actual, interpretación de los parámetros relevantes (sensación térmica, viento, presión, UV), tendencia general de la semana, y recomendaciones prácticas.
