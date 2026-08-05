@@ -3,8 +3,8 @@ export async function onRequestGet({ request }) {
   const src = searchParams.get('url');
   if (!src) return new Response('Missing url param', { status: 400 });
 
-  // Solo permitimos proxear estos dos dominios, por seguridad
-  const allowed = ['smn.gob.ar', 'cdn.star.nesdis.noaa.gov'];
+  // Solo permitimos proxear este dominio, por seguridad
+  const allowed = ['cdn.star.nesdis.noaa.gov'];
   let hostname;
   try {
     hostname = new URL(src).hostname;
