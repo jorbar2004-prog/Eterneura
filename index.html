@@ -3597,8 +3597,8 @@ async function analyzeWeatherImages() {
   // Convertimos las 2 primeras imágenes a base64 para mandárselas al modelo de visión
   async function imgToBase64(url) {
     try {
-      // Las imágenes del SMN/NOAA no tienen CORS, así que las pedimos via proxy canvas
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url + '?cb=' + Date.now())}`;
+      // Las imágenes de NOAA no tienen CORS, así que las pedimos vía nuestro proxy propio
+      const proxyUrl = `/api/weather-image?url=${encodeURIComponent(url)}&cb=${Date.now()}`;
       const res = await fetch(proxyUrl);
       if (!res.ok) throw new Error('fetch failed');
       const blob = await res.blob();
