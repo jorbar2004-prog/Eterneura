@@ -1335,7 +1335,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     <!-- Satélite & Radar -->
     <div class="wp-section" id="wp-satellite-sec">
       <div class="wp-hint" style="margin-bottom:12px">
-        Imágenes actualizadas del <strong>Servicio Meteorológico Nacional (SMN)</strong> y GOES-16. Se refrescan cada vez que abrís esta pestaña.
+        Imágenes actualizadas del satélite <strong>GOES-16 (NOAA)</strong>: visible, infrarrojo, vapor de agua y sandwich. Se refrescan cada vez que abrís esta pestaña.
       </div>
       <div class="wp-imgs" id="wp-sat-grid"></div>
     </div>
@@ -3365,14 +3365,14 @@ const WP_SAT_SOURCES = [
     ts: 'NOAA / GOES-16 Canal 13 (IR) · Actualización automática'
   },
   {
-    label: 'Radar Nacional — SMN Argentina',
-    url: 'https://www.smn.gob.ar/sites/default/files/imagenes/radar/radar-nacional.gif',
-    ts: 'SMN Argentina · Se actualiza cada ~10 minutos'
+    label: 'Satélite GOES-16 — Vapor de agua (nivel medio)',
+    url: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/sa/09/latest.jpg',
+    ts: 'NOAA / GOES-16 Canal 9 (Vapor de agua) · Actualización automática'
   },
   {
-    label: 'Satélite IR — SMN Argentina',
-    url: 'https://www.smn.gob.ar/sites/default/files/imagenes/satelite/satelitecanal4-SudAmerica.jpg',
-    ts: 'SMN Argentina · Canal 4 IR · Se actualiza cada ~30 minutos'
+    label: 'Satélite GOES-16 — Sandwich (IR + visible)',
+    url: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/sa/Sandwich/latest.jpg',
+    ts: 'NOAA / GOES-16 Sandwich · Actualización automática'
   }
 ];
 
