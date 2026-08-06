@@ -1,5 +1,5 @@
 // Cloudflare Pages Function — /api/chat
-// v4.8.0: fix empty-content bug, updated model lists, OCR support
+// v5.1.0: motor unificado + SSE status streaming + empty-content fix
 
 const GROQ_MODELS = [
   'moonshotai/kimi-k2-instruct-0905',
@@ -50,20 +50,47 @@ const WEB_SEARCH_TOOL = {
   }
 };
 
+// =============================================================================
+// UTILIDADES
+// =============================================================================
+
+async function fetchWithTimeout(url, options, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+function getValidReply(result) {
+  const content = result.data?.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') return null;
+  const trimmed = content.trim();
+  if (trimmed.length === 0) return null;
+  if (/^(null|undefined|none|nil)$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+// =============================================================================
+// SERPER
+// =============================================================================
+
 async function serperSearch(apiKey, query) {
   try {
-    const res = await fetch('https://google.serper.dev/search', {
+    const res = await fetchWithTimeout('https://google.serper.dev/search', {
       method: 'POST',
       headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 6 })
     });
     if (!res.ok) return [];
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     return (data.organic || []).map(r => ({
       title: r.title || '', url: r.link || '', description: r.snippet || ''
     }));
   } catch (e) {
-    console.error('Serper error:', e);
+    console.error('Serper error:', e.message);
     return [];
   }
 }
@@ -74,51 +101,80 @@ function formatSearchResults(results, query) {
     results.map((r, i) => `${i + 1}. **${r.title}**\n   ${r.description}\n   Fuente: ${r.url}`).join('\n\n');
 }
 
+// =============================================================================
+// PROVIDERS
+// =============================================================================
+
 async function callGroq(apiKey, model, messages, tools) {
   const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
   if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      return { ok: false, status: 408, data: { error: { message: 'Groq timeout' } } };
+    }
+    return { ok: false, status: 0, data: { error: { message: e.message } } };
+  }
 }
 
 async function callOpenRouter(apiKey, model, messages, tools) {
   const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
   if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eterneura.pages.dev', 'X-Title': 'Eterneura'
-    },
-    body: JSON.stringify(body)
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://eterneura.pages.dev',
+        'X-Title': 'Eterneura'
+      },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      return { ok: false, status: 408, data: { error: { message: 'OpenRouter timeout' } } };
+    }
+    return { ok: false, status: 0, data: { error: { message: e.message } } };
+  }
 }
 
-async function callWithSearch(callFn, messages, serperKey) {
+async function callWithSearch(callFn, messages, serperKey, reporter) {
   const tools = serperKey ? [WEB_SEARCH_TOOL] : [];
   const result = await callFn(messages, tools);
   if (!result.ok) return result;
 
-  const choice = result.data.choices?.[0];
+  const choice = result.data?.choices?.[0];
   if (choice?.finish_reason === 'tool_calls' && serperKey) {
     const toolCalls = choice.message?.tool_calls || [];
     const assistantMsg = choice.message;
+
+    reporter?.status('Buscando en la web...');
 
     const toolResults = await Promise.all(
       toolCalls.map(async tc => {
         let query = '';
         try { query = JSON.parse(tc.function.arguments).query || ''; } catch {}
         const results = query ? await serperSearch(serperKey, query) : [];
-        return { role: 'tool', tool_call_id: tc.id, name: 'web_search', content: formatSearchResults(results, query) };
+        return {
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: 'web_search',
+          content: formatSearchResults(results, query)
+        };
       })
     );
+
+    reporter?.status('Analizando resultados...');
 
     const msgs2 = [...messages, assistantMsg, ...toolResults];
     return await callFn(msgs2, []);
@@ -126,7 +182,10 @@ async function callWithSearch(callFn, messages, serperKey) {
   return result;
 }
 
-// Extraer texto OCR del mensaje si existe
+// =============================================================================
+// OCR
+// =============================================================================
+
 function extractOCRFromMessages(messages) {
   for (const msg of messages) {
     if (typeof msg.content === 'string' && msg.content.includes('--- TEXTO EXTRAÍDO VIA OCR ---')) {
@@ -137,10 +196,9 @@ function extractOCRFromMessages(messages) {
   return null;
 }
 
-// Preparar mensajes para fallback a texto (quitar imágenes, mantener OCR)
 function prepareTextFallback(messages, ocrText) {
-  return messages.map(msg => {
-    if (typeof msg.content === 'string') return msg;
+  const out = messages.map(msg => {
+    if (typeof msg.content === 'string') return { ...msg };
     if (Array.isArray(msg.content)) {
       const textParts = msg.content
         .filter(c => c.type === 'text')
@@ -148,18 +206,209 @@ function prepareTextFallback(messages, ocrText) {
         .join('\n');
       return { ...msg, content: textParts };
     }
-    return msg;
+    return { ...msg };
   });
+
+  const lastMsg = out[out.length - 1];
+  if (lastMsg?.role === 'user') {
+    lastMsg.content = `[NOTA: No pude analizar la imagen directamente, pero extraje el siguiente texto via OCR:]\n\n${ocrText}\n\n[Pregunta del usuario:]\n${lastMsg.content}`;
+  }
+  return out;
 }
 
-// Helper: validar que la respuesta tenga contenido real
-function getValidReply(result) {
-  const content = result.data?.choices?.[0]?.message?.content;
-  if (typeof content === 'string' && content.trim().length > 0) {
-    return content.trim();
+// =============================================================================
+// MOTOR DE FALLBACK
+// =============================================================================
+
+async function trySequential(models, caller, reporter) {
+  const attempts = [];
+  for (const model of models) {
+    const shortName = model.split('/').pop();
+    reporter?.status(`Consultando ${shortName}...`);
+    try {
+      const result = await caller(model);
+      if (result.ok) {
+        const reply = getValidReply(result);
+        if (reply) {
+          reporter?.status('Generando respuesta...');
+          return { success: true, reply, model, attempts };
+        }
+        attempts.push({ model, status: 'empty' });
+        reporter?.status('Respuesta vacía, probando alternativa...');
+        continue;
+      }
+      const err = result.data?.error?.message || `HTTP ${result.status}`;
+      attempts.push({ model, status: 'error', error: err, code: result.status });
+      if (result.status !== 429 && result.status !== 404) {
+        reporter?.status('Error de conexión, probando respaldo...');
+        break;
+      }
+      reporter?.status('Saturado, probando alternativa...');
+    } catch (e) {
+      attempts.push({ model, status: 'exception', error: e.message });
+      reporter?.status('Error de conexión, probando respaldo...');
+    }
   }
-  return null;
+  return { success: false, attempts };
 }
+
+async function tryParallelThenSequential(models, caller, parallelCount = 3, reporter) {
+  const batch = models.slice(0, parallelCount);
+  const rest = models.slice(parallelCount);
+  const attempts = [];
+
+  reporter?.status('Consultando modelos de visión...');
+
+  const settled = await Promise.allSettled(
+    batch.map(async (model) => {
+      const r = await caller(model);
+      return { model, ...r };
+    })
+  );
+
+  for (const s of settled) {
+    if (s.status === 'rejected') {
+      attempts.push({ model: s.reason?.model || 'unknown', status: 'exception', error: s.reason.message });
+      continue;
+    }
+    const { model, ok, data, status: httpStatus } = s.value;
+    if (ok) {
+      const reply = getValidReply({ data });
+      if (reply) {
+        reporter?.status('Generando respuesta...');
+        return { success: true, reply, model, attempts };
+      }
+      attempts.push({ model, status: 'empty' });
+    } else {
+      const err = data?.error?.message || `HTTP ${httpStatus}`;
+      attempts.push({ model, status: 'error', error: err, code: httpStatus });
+    }
+  }
+
+  const hadFatal = attempts.some(a => a.code && a.code !== 429 && a.code !== 404);
+  if (rest.length && !hadFatal) {
+    reporter?.status('Probando modelos adicionales...');
+    const seq = await trySequential(rest, caller, reporter);
+    return { ...seq, attempts: [...attempts, ...seq.attempts] };
+  }
+
+  return { success: false, attempts };
+}
+
+// =============================================================================
+// CORE LOGIC
+// =============================================================================
+
+async function handleChat(messages, hasImages, env, reporter) {
+  const groqKey = env.GROQ_API_KEY;
+  const orKey = env.OPENROUTER_API_KEY;
+  const serperKey = env.SERPER_API_KEY;
+  let lastError = null;
+  const allAttempts = [];
+
+  reporter?.status('Analizando tu consulta...');
+
+  // ============================================================
+  // MODO IMÁGENES
+  // ============================================================
+  if (hasImages) {
+    reporter?.status('Analizando imagen...');
+    const ocrText = extractOCRFromMessages(messages);
+
+    // 1. Visión: race paralelo de los primeros 3, luego secuencial
+    if (orKey) {
+      const visionRes = await tryParallelThenSequential(
+        OPENROUTER_VISION_MODELS,
+        (model) => callOpenRouter(orKey, model, messages, []),
+        3,
+        reporter
+      );
+      if (visionRes.success) return { reply: visionRes.reply, model: visionRes.model };
+      allAttempts.push(...visionRes.attempts);
+    }
+
+    // 2. Fallback OCR → texto
+    if (ocrText) {
+      reporter?.status('Extrayendo texto de la imagen...');
+      const textMessages = prepareTextFallback(messages, ocrText);
+
+      if (groqKey) {
+        const groqRes = await trySequential(GROQ_MODELS, (model) =>
+          callWithSearch(
+            (msgs, tools) => callGroq(groqKey, model, msgs, tools),
+            textMessages,
+            serperKey,
+            reporter
+          ),
+          reporter
+        );
+        if (groqRes.success) return { reply: groqRes.reply, model: groqRes.model };
+        allAttempts.push(...groqRes.attempts);
+      }
+
+      if (orKey) {
+        const orRes = await trySequential(OPENROUTER_MODELS, (model) =>
+          callWithSearch(
+            (msgs, tools) => callOpenRouter(orKey, model, msgs, tools),
+            textMessages,
+            serperKey,
+            reporter
+          ),
+          reporter
+        );
+        if (orRes.success) return { reply: orRes.reply, model: orRes.model };
+        allAttempts.push(...orRes.attempts);
+      }
+    }
+
+    // 3. Último recurso
+    reporter?.status('Preparando respuesta alternativa...');
+    const fallbackReply = ocrText
+      ? `No pude analizar la imagen directamente (los modelos de visión están saturados), pero extraje este texto via OCR:\n\n---\n${ocrText}\n---\n\n¿Querés que verifique este contenido?`
+      : 'No pude analizar la imagen directamente (los modelos de visión están saturados). Si la imagen contiene texto, podés copiarlo y pegarlo acá, o describirme qué ves y hago la verificación.';
+    return { reply: fallbackReply, model: null };
+  }
+
+  // ============================================================
+  // MODO TEXTO NORMAL
+  // ============================================================
+  reporter?.status('Pensando...');
+
+  if (groqKey) {
+    const groqRes = await trySequential(GROQ_MODELS, (model) =>
+      callWithSearch(
+        (msgs, tools) => callGroq(groqKey, model, msgs, tools),
+        messages,
+        serperKey,
+        reporter
+      ),
+      reporter
+    );
+    if (groqRes.success) return { reply: groqRes.reply, model: groqRes.model };
+    allAttempts.push(...groqRes.attempts);
+  }
+
+  if (orKey) {
+    const orRes = await trySequential(OPENROUTER_MODELS, (model) =>
+      callWithSearch(
+        (msgs, tools) => callOpenRouter(orKey, model, msgs, tools),
+        messages,
+        serperKey,
+        reporter
+      ),
+      reporter
+    );
+    if (orRes.success) return { reply: orRes.reply, model: orRes.model };
+    allAttempts.push(...orRes.attempts);
+  }
+
+  const lastErrorMsg = allAttempts.at(-1)?.error || 'Sin detalles';
+  return { error: `Todos los motores están saturados. (${lastErrorMsg})` };
+}
+
+// =============================================================================
+// HANDLER PRINCIPAL
+// =============================================================================
 
 export async function onRequestPost(context) {
   const cors = {
@@ -168,7 +417,10 @@ export async function onRequestPost(context) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
   const jsonRes = (status, obj) =>
-    new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...cors } });
+    new Response(JSON.stringify(obj), {
+      status,
+      headers: { 'Content-Type': 'application/json', ...cors }
+    });
 
   const groqKey = context.env.GROQ_API_KEY;
   const orKey = context.env.OPENROUTER_API_KEY;
@@ -182,122 +434,60 @@ export async function onRequestPost(context) {
   try { body = await context.request.json(); }
   catch { return jsonRes(400, { error: 'JSON inválido' }); }
 
-  const { messages, hasImages } = body;
+  const { messages, hasImages, stream } = body;
   if (!messages?.length) return jsonRes(400, { error: 'Falta messages' });
 
-  const ocrText = extractOCRFromMessages(messages);
-  let lastError = null;
+  // ── Modo Streaming (SSE) ─────────────────────────────────
+  if (stream) {
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
 
-  // ============================================================
-  // MODO IMÁGENES: intentar visión primero, fallback a texto
-  // ============================================================
-  if (hasImages) {
-    // 1. Intentar modelos de visión
-    if (orKey) {
-      for (const model of OPENROUTER_VISION_MODELS) {
-        let result;
-        try { result = await callOpenRouter(orKey, model, messages, []); }
-        catch (err) { lastError = err.message; continue; }
-        if (result.ok) {
-          const reply = getValidReply(result);
-          if (reply) return jsonRes(200, { reply });
-          lastError = `Visión ${model}: respuesta vacía`;
-          console.warn(`Visión vacía (${model}):`, lastError);
-          continue;
-        }
-        lastError = result.data?.error?.message || `OR ${result.status}`;
-        console.warn(`Visión falló (${model}):`, lastError);
-        if (result.status !== 429 && result.status !== 404) break;
+    const reporter = {
+      status: (msg) => {
+        try {
+          writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'status', message: msg })}\n\n`));
+        } catch(_) {}
+      },
+      done: (reply, model) => {
+        try {
+          writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'done', reply, model })}\n\n`));
+        } catch(_) {}
+        writer.close();
+      },
+      error: (err) => {
+        try {
+          writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: err })}\n\n`));
+        } catch(_) {}
+        writer.close();
       }
-    }
+    };
 
-    // 2. Fallback: si hay OCR, usar modelo de texto con el OCR como contexto
-    if (ocrText) {
-      console.log('Fallback a texto con OCR');
-      const textMessages = prepareTextFallback(messages, ocrText);
+    handleChat(messages, hasImages, context.env, reporter)
+      .then(result => {
+        if (result.error) reporter.error(result.error);
+        else reporter.done(result.reply, result.model);
+      })
+      .catch(err => reporter.error(err.message));
 
-      const lastMsg = textMessages[textMessages.length - 1];
-      if (lastMsg.role === 'user') {
-        lastMsg.content = `[NOTA: No pude analizar la imagen directamente, pero extraje el siguiente texto via OCR:]\n\n${ocrText}\n\n[Pregunta del usuario:]\n${lastMsg.content}`;
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        ...cors
       }
-
-      if (groqKey) {
-        for (const model of GROQ_MODELS) {
-          let result;
-          try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), textMessages, serperKey); }
-          catch (err) { lastError = 'Groq: ' + err.message; continue; }
-          if (result.ok) {
-            const reply = getValidReply(result);
-            if (reply) return jsonRes(200, { reply });
-            lastError = `Groq ${model}: respuesta vacía`;
-            continue;
-          }
-          lastError = result.data?.error?.message || `Groq ${result.status}`;
-          if (result.status !== 429 && result.status !== 404) break;
-        }
-      }
-
-      if (orKey) {
-        for (const model of OPENROUTER_MODELS) {
-          let result;
-          try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), textMessages, serperKey); }
-          catch (err) { lastError = 'OR: ' + err.message; continue; }
-          if (result.ok) {
-            const reply = getValidReply(result);
-            if (reply) return jsonRes(200, { reply });
-            lastError = `OR ${model}: respuesta vacía`;
-            continue;
-          }
-          lastError = result.data?.error?.message || `OR ${result.status}`;
-          if (result.status !== 429 && result.status !== 404) break;
-        }
-      }
-    }
-
-    // 3. Último recurso: mensaje útil al usuario
-    return jsonRes(200, {
-      reply: ocrText
-        ? `No pude analizar la imagen directamente (los modelos de visión están saturados), pero extraje este texto via OCR:\n\n---\n${ocrText}\n---\n\n¿Querés que verifique este contenido?`
-        : 'No pude analizar la imagen directamente (los modelos de visión están saturados). Si la imagen contiene texto, podés copiarlo y pegarlo acá, o describirme qué ves y hago la verificación.'
     });
   }
 
-  // ============================================================
-  // MODO TEXTO NORMAL
-  // ============================================================
-  if (groqKey) {
-    for (const model of GROQ_MODELS) {
-      let result;
-      try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), messages, serperKey); }
-      catch (err) { lastError = 'Groq: ' + err.message; continue; }
-      if (result.ok) {
-        const reply = getValidReply(result);
-        if (reply) return jsonRes(200, { reply });
-        lastError = `Groq ${model}: respuesta vacía`;
-        continue;
-      }
-      lastError = result.data?.error?.message || `Groq ${result.status} (${model})`;
-      if (result.status !== 429 && result.status !== 404) break;
-    }
+  // ── Modo JSON clásico (Evaluador, Clima, etc.) ──────────
+  try {
+    const result = await handleChat(messages, hasImages, context.env, null);
+    if (result.error) return jsonRes(429, { error: result.error });
+    return jsonRes(200, { reply: result.reply });
+  } catch (err) {
+    return jsonRes(500, { error: err.message });
   }
-
-  if (orKey) {
-    for (const model of OPENROUTER_MODELS) {
-      let result;
-      try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), messages, serperKey); }
-      catch (err) { lastError = 'OR: ' + err.message; continue; }
-      if (result.ok) {
-        const reply = getValidReply(result);
-        if (reply) return jsonRes(200, { reply });
-        lastError = `OR ${model}: respuesta vacía`;
-        continue;
-      }
-      lastError = result.data?.error?.message || `OR ${result.status} (${model})`;
-      if (result.status !== 429 && result.status !== 404) break;
-    }
-  }
-
-  return jsonRes(429, { error: 'Todos los motores están saturados. (' + lastError + ')' });
 }
 
 export async function onRequestOptions() {
