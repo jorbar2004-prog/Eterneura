@@ -784,7 +784,11 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .help-modal { padding:20px 16px 16px; }
   .help-modal h2 { font-size:18px; }
 }
+
+/* Model badge */
+.model-badge { font-size: 10px; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-weight: 500; letter-spacing: .02em; cursor: default; }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -863,7 +867,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama-3.1-70b → gemma2-9b-it), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (Qwen-VL, Llama Vision). No requiere configuración adicional.</div>
+      <div class="modal-hint">Eterneura usa Groq como motor principal (moonshotai/kimi-k2-instruct-0905 → openai/gpt-oss-120b → qwen/qwen3.6-27b), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (gemma-4-31b, llama-4-maverick, qwen2.5-vl). No requiere configuración adicional.</div>
     </div>
 
     <div class="modal-section">
@@ -1113,7 +1117,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     <div class="sb-logo">
       <div class="sb-logo-text">
         <div class="logo-name" id="ai-name-display">Etern<span>eura</span></div>
-        <div class="logo-tag">IA Educativa · v4.7</div>
+        <div class="logo-tag">IA Educativa · v5.1</div>
       </div>
       <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="Colapsar panel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2353,7 +2357,6 @@ async function sendMessage(override) {
 
   if (!override) { input.value = ''; autoGrow(input); }
 
-  // Build the current user message content: multimodal if images attached
   const userContent = imagesForThisMsg.length
     ? [
         ...imagesForThisMsg.map(img => ({ type: 'image_url', image_url: { url: img.dataUrl } })),
@@ -2361,16 +2364,13 @@ async function sendMessage(override) {
       ]
     : text;
 
-  // Build messages BEFORE pushing to history to avoid duplication
   const sysPrompt = buildSystemPrompt(text, imagesForThisMsg.length > 0);
   const messages  = [
     { role:'system', content: sysPrompt },
-    ...history,                          // previous turns (user + assistant alternating)
-    { role:'user', content: userContent } // current user message (text or multimodal)
+    ...history,
+    { role:'user', content: userContent }
   ];
 
-  // Push to history — para mensajes con imágenes guardamos solo el texto
-  // (los base64 de imagen no deben acumularse en el historial: inflan el payload)
   const userContentForHistory = imagesForThisMsg.length
     ? [{ type: 'text', text: (text || 'Imagen adjunta') + ` [${imagesForThisMsg.length} imagen(es) adjunta(s)]` }]
     : userContent;
@@ -2384,29 +2384,68 @@ async function sendMessage(override) {
 
   loading = true;
   document.getElementById('send-btn').disabled = true;
-  const typingEl = addTyping();
+  const typingEl = addTyping('Preparando...');
 
   try {
-    const res  = await fetch('/api/chat', {
+    const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ messages, hasImages: imagesForThisMsg.length > 0, allowWebSearch: true })
+      body: JSON.stringify({ messages, hasImages: imagesForThisMsg.length > 0, stream: true, allowWebSearch: true })
     });
-    const data = await res.json();
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalReply = null;
+    let finalModel = null;
+    let finalError = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6);
+        if (json === '[DONE]') continue;
+        const event = JSON.parse(json);
+
+        if (event.type === 'status') {
+          updateTypingStatus(typingEl, event.message);
+        } else if (event.type === 'done') {
+          finalReply = event.reply;
+          finalModel = event.model;
+        } else if (event.type === 'error') {
+          finalError = event.error;
+        }
+      }
+    }
+
     typingEl.remove();
 
-    if (!res.ok || data.error) {
-      addBubble('ai', `⚠️ Error: ${data.error || 'Sin respuesta del servidor.'}`);
-      history.pop(); // remove failed user message from history
-    } else {
-      addBubble('ai', data.reply);
-      history.push({ role:'assistant', content: data.reply });
+    if (finalError) throw new Error(finalError);
+
+    if (finalReply !== null) {
+      addBubble('ai', finalReply, null, finalModel);
+      history.push({ role:'assistant', content: finalReply });
       if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
-      updateCognitiveProfile(); // update mastery after successful exchange
-      if (typeof speakResponse === 'function') speakResponse(data.reply);
+      updateCognitiveProfile();
+      if (typeof speakResponse === 'function') speakResponse(finalReply);
+    } else {
+      throw new Error('No se recibió respuesta del servidor');
     }
+
   } catch(err) {
-    typingEl.remove();
-    addBubble('ai', '⚠️ No se pudo conectar. Verificá tu conexión o la configuración del servidor.');
+    typingEl?.remove();
+    addBubble('ai', '⚠️ ' + err.message);
     history.pop();
   } finally {
     loading = false;
@@ -2464,7 +2503,7 @@ async function requestSessionSummary() {
 }
 
 // ── Rendering ──────────────────────────────────────────
-function addBubble(role, text, images) {
+function addBubble(role, text, images, model) {
   const wrap = document.createElement('div');
   wrap.className = `msg-wrap ${role}`;
   const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'Eterneura');
@@ -2472,8 +2511,11 @@ function addBubble(role, text, images) {
   const imgHtml = (images && images.length)
     ? `<div class="bubble-img-grid">${images.map(img => `<img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">`).join('')}</div>`
     : '';
+  const modelBadge = (role === 'ai' && model)
+    ? `<span class="model-badge" title="Modelo que respondió">✓ ${escapeHtml(model.split('/').pop().replace(':free',''))}</span>`
+    : '';
   wrap.innerHTML = `
-    <div class="msg-meta">${escapeHtml(label)} · ${time}</div>
+    <div class="msg-meta">${escapeHtml(label)} · ${time}${modelBadge}</div>
     <div class="bubble">${imgHtml}${role === 'ai' ? parseMarkdown(text) : escapeHtml(text)}</div>`;
   const msgs = document.getElementById('messages');
   msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
@@ -2513,13 +2555,26 @@ async function generateImageFor(id, el) {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function addTyping() {
+function addTyping(statusText) {
   const wrap = document.createElement('div');
   wrap.className = 'msg-wrap ai';
-  wrap.innerHTML = `<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  wrap.id = 'typing-indicator';
+  wrap.innerHTML = `<div class="bubble"><div class="typing-status" style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-style:italic;min-height:18px;">${escapeHtml(statusText || 'Pensando...')}</div><div class="typing"><span></span><span></span><span></span></div></div>`;
   const msgs = document.getElementById('messages');
   msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
   return wrap;
+}
+
+function updateTypingStatus(el, text) {
+  if (!el) return;
+  const statusEl = el.querySelector('.typing-status');
+  if (statusEl) {
+    statusEl.textContent = text;
+    statusEl.style.opacity = '0.6';
+    requestAnimationFrame(() => { statusEl.style.transition = 'opacity 0.2s'; statusEl.style.opacity = '1'; });
+  }
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function clearChat() {
@@ -3255,7 +3310,10 @@ function buildPrintHTML(historyData, subject, profileName, dateStr) {
     .msg.ai .msg-body { background: #eaf0f8; border-left-color: #205e94; }
     .footer { font-size: 9pt; color: #aaa; text-align: center; padding: 16px; border-top: 1px solid #eee; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  </style></head><body>
+  
+/* Model badge */
+.model-badge { font-size: 10px; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-weight: 500; letter-spacing: .02em; cursor: default; }
+</style></head><body>
   <div class="cover">
     <div class="cover-title">${aiName}</div>
     <div class="cover-meta">
