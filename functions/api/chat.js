@@ -1,5 +1,5 @@
 // Cloudflare Pages Function — /api/chat
-// v4.7.2-hotfix: fallback automático visión→texto, OCR support, mejor manejo de errores
+// v4.8.0: fix empty-content bug, updated model lists, OCR support
 
 const GROQ_MODELS = [
   'moonshotai/kimi-k2-instruct-0905',
@@ -10,20 +10,28 @@ const GROQ_MODELS = [
 
 const OPENROUTER_MODELS = [
   'moonshotai/kimi-k2.6:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
   'google/gemma-4-31b-it:free',
-  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'inclusionai/ling-3.0-flash:free',
   'openai/gpt-oss-20b:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'poolside/laguna-m.1:free',
-  'cohere/north-mini-code:free'
+  'poolside/laguna-s-2.1:free',
+  'poolside/laguna-xs-2.1:free',
+  'cohere/north-mini-code:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+  'nvidia/nemotron-nano-9b-v2:free'
 ];
 
 const OPENROUTER_VISION_MODELS = [
   'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free',
   'nvidia/nemotron-nano-12b-v2-vl:free',
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'moonshotai/kimi-vl-a3b-thinking:free',
+  'meta-llama/llama-4-maverick:free',
+  'meta-llama/llama-4-scout:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
+  'qwen/qwen2.5-vl-3b-instruct:free',
   'openrouter/free'
 ];
 
@@ -134,7 +142,6 @@ function prepareTextFallback(messages, ocrText) {
   return messages.map(msg => {
     if (typeof msg.content === 'string') return msg;
     if (Array.isArray(msg.content)) {
-      // Filtrar solo los bloques de texto, quitar imágenes
       const textParts = msg.content
         .filter(c => c.type === 'text')
         .map(c => c.text)
@@ -143,6 +150,15 @@ function prepareTextFallback(messages, ocrText) {
     }
     return msg;
   });
+}
+
+// Helper: validar que la respuesta tenga contenido real
+function getValidReply(result) {
+  const content = result.data?.choices?.[0]?.message?.content;
+  if (typeof content === 'string' && content.trim().length > 0) {
+    return content.trim();
+  }
+  return null;
 }
 
 export async function onRequestPost(context) {
@@ -183,10 +199,13 @@ export async function onRequestPost(context) {
         try { result = await callOpenRouter(orKey, model, messages, []); }
         catch (err) { lastError = err.message; continue; }
         if (result.ok) {
-          const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-          return jsonRes(200, { reply });
+          const reply = getValidReply(result);
+          if (reply) return jsonRes(200, { reply });
+          lastError = `Visión ${model}: respuesta vacía`;
+          console.warn(`Visión vacía (${model}):`, lastError);
+          continue;
         }
-        lastError = result.data.error?.message || `OR ${result.status}`;
+        lastError = result.data?.error?.message || `OR ${result.status}`;
         console.warn(`Visión falló (${model}):`, lastError);
         if (result.status !== 429 && result.status !== 404) break;
       }
@@ -197,23 +216,23 @@ export async function onRequestPost(context) {
       console.log('Fallback a texto con OCR');
       const textMessages = prepareTextFallback(messages, ocrText);
 
-      // Agregar contexto OCR al system prompt o al último mensaje
       const lastMsg = textMessages[textMessages.length - 1];
       if (lastMsg.role === 'user') {
         lastMsg.content = `[NOTA: No pude analizar la imagen directamente, pero extraje el siguiente texto via OCR:]\n\n${ocrText}\n\n[Pregunta del usuario:]\n${lastMsg.content}`;
       }
 
-      // Intentar con modelos de texto
       if (groqKey) {
         for (const model of GROQ_MODELS) {
           let result;
           try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), textMessages, serperKey); }
           catch (err) { lastError = 'Groq: ' + err.message; continue; }
           if (result.ok) {
-            const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-            return jsonRes(200, { reply });
+            const reply = getValidReply(result);
+            if (reply) return jsonRes(200, { reply });
+            lastError = `Groq ${model}: respuesta vacía`;
+            continue;
           }
-          lastError = result.data.error?.message || `Groq ${result.status}`;
+          lastError = result.data?.error?.message || `Groq ${result.status}`;
           if (result.status !== 429 && result.status !== 404) break;
         }
       }
@@ -224,10 +243,12 @@ export async function onRequestPost(context) {
           try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), textMessages, serperKey); }
           catch (err) { lastError = 'OR: ' + err.message; continue; }
           if (result.ok) {
-            const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-            return jsonRes(200, { reply });
+            const reply = getValidReply(result);
+            if (reply) return jsonRes(200, { reply });
+            lastError = `OR ${model}: respuesta vacía`;
+            continue;
           }
-          lastError = result.data.error?.message || `OR ${result.status}`;
+          lastError = result.data?.error?.message || `OR ${result.status}`;
           if (result.status !== 429 && result.status !== 404) break;
         }
       }
@@ -250,10 +271,12 @@ export async function onRequestPost(context) {
       try { result = await callWithSearch((msgs, tools) => callGroq(groqKey, model, msgs, tools), messages, serperKey); }
       catch (err) { lastError = 'Groq: ' + err.message; continue; }
       if (result.ok) {
-        const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return jsonRes(200, { reply });
+        const reply = getValidReply(result);
+        if (reply) return jsonRes(200, { reply });
+        lastError = `Groq ${model}: respuesta vacía`;
+        continue;
       }
-      lastError = result.data.error?.message || `Groq ${result.status} (${model})`;
+      lastError = result.data?.error?.message || `Groq ${result.status} (${model})`;
       if (result.status !== 429 && result.status !== 404) break;
     }
   }
@@ -264,10 +287,12 @@ export async function onRequestPost(context) {
       try { result = await callWithSearch((msgs, tools) => callOpenRouter(orKey, model, msgs, tools), messages, serperKey); }
       catch (err) { lastError = 'OR: ' + err.message; continue; }
       if (result.ok) {
-        const reply = result.data.choices?.[0]?.message?.content || 'Sin respuesta.';
-        return jsonRes(200, { reply });
+        const reply = getValidReply(result);
+        if (reply) return jsonRes(200, { reply });
+        lastError = `OR ${model}: respuesta vacía`;
+        continue;
       }
-      lastError = result.data.error?.message || `OR ${result.status} (${model})`;
+      lastError = result.data?.error?.message || `OR ${result.status} (${model})`;
       if (result.status !== 429 && result.status !== 404) break;
     }
   }
