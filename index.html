@@ -543,7 +543,9 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 .summary-bubble { background: var(--surface-3); border: 1px solid var(--border-2); border-left: 3px solid var(--green); font-size: 13px; }
 
 /* Typing */
-.typing { display: flex; gap: 5px; align-items: center; padding: 12px 14px; }
+.typing { display: flex; gap: 5px; align-items: center; padding: 0; }
+.typing-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.typing-status { font-size: 12px; color: var(--text-muted); font-style: italic; }
 .typing span { width: 7px; height: 7px; background: var(--text-muted); border-radius: 50%; animation: bounce .9s infinite; }
 .typing span:nth-child(2) { animation-delay: .15s; }
 .typing span:nth-child(3) { animation-delay: .3s; }
@@ -784,11 +786,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
   .help-modal { padding:20px 16px 16px; }
   .help-modal h2 { font-size:18px; }
 }
-
-/* Model badge */
-.model-badge { font-size: 10px; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-weight: 500; letter-spacing: .02em; cursor: default; }
 </style>
-<base target="_blank">
 </head>
 <body>
 
@@ -867,7 +865,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
 
     <div class="modal-section">
       <div class="modal-label">Motor de IA</div>
-      <div class="modal-hint">Eterneura usa Groq como motor principal (moonshotai/kimi-k2-instruct-0905 → openai/gpt-oss-120b → qwen/qwen3.6-27b), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (gemma-4-31b, llama-4-maverick, qwen2.5-vl). No requiere configuración adicional.</div>
+      <div class="modal-hint">Eterneura usa Groq como motor principal (llama-3.3-70b-versatile → llama-3.1-70b → gemma2-9b-it), con OpenRouter como respaldo automático si Groq está saturado. Para imágenes usa modelos de visión gratuitos vía OpenRouter (Qwen-VL, Llama Vision). No requiere configuración adicional.</div>
     </div>
 
     <div class="modal-section">
@@ -1117,7 +1115,7 @@ textarea.field-input { resize: none; min-height: 80px; line-height: 1.5; }
     <div class="sb-logo">
       <div class="sb-logo-text">
         <div class="logo-name" id="ai-name-display">Etern<span>eura</span></div>
-        <div class="logo-tag">IA Educativa · v5.1</div>
+        <div class="logo-tag">IA Educativa · v4.7</div>
       </div>
       <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="Colapsar panel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2357,6 +2355,7 @@ async function sendMessage(override) {
 
   if (!override) { input.value = ''; autoGrow(input); }
 
+  // Build the current user message content: multimodal if images attached
   const userContent = imagesForThisMsg.length
     ? [
         ...imagesForThisMsg.map(img => ({ type: 'image_url', image_url: { url: img.dataUrl } })),
@@ -2364,13 +2363,16 @@ async function sendMessage(override) {
       ]
     : text;
 
+  // Build messages BEFORE pushing to history to avoid duplication
   const sysPrompt = buildSystemPrompt(text, imagesForThisMsg.length > 0);
   const messages  = [
     { role:'system', content: sysPrompt },
-    ...history,
-    { role:'user', content: userContent }
+    ...history,                          // previous turns (user + assistant alternating)
+    { role:'user', content: userContent } // current user message (text or multimodal)
   ];
 
+  // Push to history — para mensajes con imágenes guardamos solo el texto
+  // (los base64 de imagen no deben acumularse en el historial: inflan el payload)
   const userContentForHistory = imagesForThisMsg.length
     ? [{ type: 'text', text: (text || 'Imagen adjunta') + ` [${imagesForThisMsg.length} imagen(es) adjunta(s)]` }]
     : userContent;
@@ -2384,7 +2386,7 @@ async function sendMessage(override) {
 
   loading = true;
   document.getElementById('send-btn').disabled = true;
-  const typingEl = addTyping('Preparando...');
+  const typingEl = addTyping('Preparando…');
 
   try {
     const res = await fetch('/api/chat', {
@@ -2401,7 +2403,6 @@ async function sendMessage(override) {
     const decoder = new TextDecoder();
     let buffer = '';
     let finalReply = null;
-    let finalModel = null;
     let finalError = null;
 
     while (true) {
@@ -2422,7 +2423,6 @@ async function sendMessage(override) {
           updateTypingStatus(typingEl, event.message);
         } else if (event.type === 'done') {
           finalReply = event.reply;
-          finalModel = event.model;
         } else if (event.type === 'error') {
           finalError = event.error;
         }
@@ -2434,7 +2434,7 @@ async function sendMessage(override) {
     if (finalError) throw new Error(finalError);
 
     if (finalReply !== null) {
-      addBubble('ai', finalReply, null, finalModel);
+      addBubble('ai', finalReply);
       history.push({ role:'assistant', content: finalReply });
       if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY * 2);
       updateCognitiveProfile();
@@ -2503,7 +2503,7 @@ async function requestSessionSummary() {
 }
 
 // ── Rendering ──────────────────────────────────────────
-function addBubble(role, text, images, model) {
+function addBubble(role, text, images) {
   const wrap = document.createElement('div');
   wrap.className = `msg-wrap ${role}`;
   const label = role === 'user' ? 'Vos' : (teacherConfig.aiName || 'Eterneura');
@@ -2511,11 +2511,8 @@ function addBubble(role, text, images, model) {
   const imgHtml = (images && images.length)
     ? `<div class="bubble-img-grid">${images.map(img => `<img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">`).join('')}</div>`
     : '';
-  const modelBadge = (role === 'ai' && model)
-    ? `<span class="model-badge" title="Modelo que respondió">✓ ${escapeHtml(model.split('/').pop().replace(':free',''))}</span>`
-    : '';
   wrap.innerHTML = `
-    <div class="msg-meta">${escapeHtml(label)} · ${time}${modelBadge}</div>
+    <div class="msg-meta">${escapeHtml(label)} · ${time}</div>
     <div class="bubble">${imgHtml}${role === 'ai' ? parseMarkdown(text) : escapeHtml(text)}</div>`;
   const msgs = document.getElementById('messages');
   msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
@@ -2555,24 +2552,19 @@ async function generateImageFor(id, el) {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function addTyping(statusText) {
+function addTyping(initialMsg) {
   const wrap = document.createElement('div');
   wrap.className = 'msg-wrap ai';
-  wrap.id = 'typing-indicator';
-  wrap.innerHTML = `<div class="bubble"><div class="typing-status" style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-style:italic;min-height:18px;">${escapeHtml(statusText || 'Pensando...')}</div><div class="typing"><span></span><span></span><span></span></div></div>`;
+  wrap.innerHTML = `<div class="bubble"><div class="typing-row"><div class="typing"><span></span><span></span><span></span></div><span class="typing-status">${escapeHtml(initialMsg || 'Pensando…')}</span></div></div>`;
   const msgs = document.getElementById('messages');
   msgs.appendChild(wrap); msgs.scrollTop = msgs.scrollHeight;
   return wrap;
 }
 
-function updateTypingStatus(el, text) {
+function updateTypingStatus(el, msg) {
   if (!el) return;
-  const statusEl = el.querySelector('.typing-status');
-  if (statusEl) {
-    statusEl.textContent = text;
-    statusEl.style.opacity = '0.6';
-    requestAnimationFrame(() => { statusEl.style.transition = 'opacity 0.2s'; statusEl.style.opacity = '1'; });
-  }
+  const s = el.querySelector('.typing-status');
+  if (s) s.textContent = msg;
   const msgs = document.getElementById('messages');
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -3310,10 +3302,7 @@ function buildPrintHTML(historyData, subject, profileName, dateStr) {
     .msg.ai .msg-body { background: #eaf0f8; border-left-color: #205e94; }
     .footer { font-size: 9pt; color: #aaa; text-align: center; padding: 16px; border-top: 1px solid #eee; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  
-/* Model badge */
-.model-badge { font-size: 10px; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-weight: 500; letter-spacing: .02em; cursor: default; }
-</style></head><body>
+  </style></head><body>
   <div class="cover">
     <div class="cover-title">${aiName}</div>
     <div class="cover-meta">
