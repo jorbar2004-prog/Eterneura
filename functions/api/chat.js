@@ -106,9 +106,20 @@ function formatSearchResults(results, query) {
     results.map((r, i) => `${i + 1}. **${r.title}**\n   ${r.description}\n   Fuente: ${r.url}`).join('\n\n');
 }
 
+// GPT-OSS (Groq y OpenRouter) son modelos "reasoning": por defecto gastan
+// tokens pensando en un campo separado antes de escribir la respuesta final.
+// Con pedidos grandes pueden agotar max_tokens pensando y devolver content
+// vacío (200 OK, content: null) — bajamos el esfuerzo de razonamiento para
+// dejar más presupuesto a la respuesta real, y subimos max_tokens en general.
+const MAX_TOKENS = 4096;
+function isReasoningModel(model) {
+  return /gpt-oss/i.test(model);
+}
+
 async function callGroq(apiKey, model, messages, tools) {
-  const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
+  const body = { model, messages, max_tokens: MAX_TOKENS, temperature: 0.7 };
   if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
+  if (isReasoningModel(model)) body.reasoning_effort = 'low';
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -119,8 +130,9 @@ async function callGroq(apiKey, model, messages, tools) {
 }
 
 async function callOpenRouter(apiKey, model, messages, tools) {
-  const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
+  const body = { model, messages, max_tokens: MAX_TOKENS, temperature: 0.7 };
   if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
+  if (isReasoningModel(model)) body.reasoning_effort = 'low';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -136,7 +148,7 @@ async function callOpenRouter(apiKey, model, messages, tools) {
 // NVIDIA NIM — endpoint OpenAI-compatible, tier gratuito (build.nvidia.com).
 // Sin tools/web-search: lo usamos como motor de respaldo directo, no con tool-calling.
 async function callNvidia(apiKey, model, messages) {
-  const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
+  const body = { model, messages, max_tokens: MAX_TOKENS, temperature: 0.7 };
   const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
