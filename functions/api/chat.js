@@ -30,6 +30,18 @@ const OPENROUTER_VISION_MODELS = [
   'openrouter/free'
 ];
 
+// NVIDIA NIM (build.nvidia.com) — tercer motor de respaldo. Tier gratuito real:
+// sin tarjeta, ~40 req/min. Mismo modelo Kimi K2.6 que ya usamos en Groq/OpenRouter,
+// pero hosteado por NVIDIA — y acá SÍ soporta imágenes de forma nativa (image_url).
+const NVIDIA_MODELS = [
+  'moonshotai/kimi-k2.6',
+  'deepseek-ai/deepseek-v4-flash'
+];
+
+const NVIDIA_VISION_MODELS = [
+  'moonshotai/kimi-k2.6'
+];
+
 const WEB_SEARCH_TOOL = {
   type: 'function',
   function: {
@@ -63,8 +75,10 @@ function friendlyModelName(model) {
     'cohere/north-mini-code:free': 'North Mini',
     'nvidia/nemotron-nano-12b-v2-vl:free': 'Nemotron Nano VL',
     'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': 'Nemotron Omni',
-    'openrouter/free': 'router automático'
+    'openrouter/free': 'router automático',
+    'deepseek-ai/deepseek-v4-flash': 'DeepSeek V4 Flash (NVIDIA)'
   };
+  if (model === 'moonshotai/kimi-k2.6') return 'Kimi K2.6 (NVIDIA)';
   return map[model] || model.split('/').pop().replace(':free', '');
 }
 
@@ -119,12 +133,50 @@ async function callOpenRouter(apiKey, model, messages, tools) {
   return { ok: res.ok, status: res.status, data };
 }
 
+// NVIDIA NIM — endpoint OpenAI-compatible, tier gratuito (build.nvidia.com).
+// Sin tools/web-search: lo usamos como motor de respaldo directo, no con tool-calling.
+async function callNvidia(apiKey, model, messages) {
+  const body = { model, messages, max_tokens: 2200, temperature: 0.7 };
+  const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+// Algunos modelos gratuitos (sobre todo por Groq/OpenRouter) no soportan bien
+// el mecanismo estructurado de function-calling: en vez de devolver
+// finish_reason:'tool_calls', "alucinan" la sintaxis de la llamada como texto
+// plano dentro del content (ej: <tool_call><function=web_search>...). Sin este
+// chequeo, ese texto crudo se mostraba tal cual como si fuera la respuesta.
+const LEAKED_TOOLCALL_RE = /<tool_call>|<\|python_tag\|>|<function\s*=|\{\s*"name"\s*:\s*"web_search"/i;
+
+function parseLeakedToolCallQuery(content) {
+  let m = content.match(/<parameter\s*=\s*query\s*>\s*([\s\S]*?)\s*<\/parameter>/i);
+  if (m) return m[1].trim();
+  m = content.match(/<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/i);
+  if (m) {
+    try {
+      const obj = JSON.parse(m[1]);
+      const q = obj.arguments?.query || obj.parameters?.query || obj.query;
+      if (q) return q;
+    } catch {}
+  }
+  m = content.match(/"query"\s*:\s*"([^"]+)"/);
+  if (m) return m[1];
+  return null;
+}
+
 async function callWithSearch(callFn, messages, serperKey) {
   const tools = serperKey ? [WEB_SEARCH_TOOL] : [];
   const result = await callFn(messages, tools);
   if (!result.ok) return result;
 
   const choice = result.data.choices?.[0];
+
+  // Caso normal: la API devolvió el tool call de forma estructurada.
   if (choice?.finish_reason === 'tool_calls' && serperKey) {
     const toolCalls = choice.message?.tool_calls || [];
     const assistantMsg = choice.message;
@@ -141,8 +193,31 @@ async function callWithSearch(callFn, messages, serperKey) {
     const msgs2 = [...messages, assistantMsg, ...toolResults];
     return await callFn(msgs2, []);
   }
+
+  // Caso "alucinado": el modelo escribió la sintaxis de tool-call como texto
+  // plano en vez de usar el mecanismo real. Si podemos extraer la query,
+  // ejecutamos la búsqueda nosotros mismos y le repreguntamos con los
+  // resultados ya insertados, para que igual conteste de forma natural.
+  const leaked = choice?.message?.content;
+  if (serperKey && typeof leaked === 'string' && LEAKED_TOOLCALL_RE.test(leaked)) {
+    const query = parseLeakedToolCallQuery(leaked);
+    console.warn('Tool-call alucinado detectado.', query ? `Query recuperada: "${query}"` : 'No se pudo parsear la query.');
+    if (query) {
+      const results = await serperSearch(serperKey, query);
+      const msgs2 = [
+        ...messages,
+        { role: 'user', content: `[Resultados de búsqueda web para "${query}"]:\n\n${formatSearchResults(results, query)}\n\nRespondé la consulta original usando esta información, de forma natural y directa, sin mencionar tool calls ni mostrar ningún formato técnico.` }
+      ];
+      return await callFn(msgs2, []);
+    }
+    // No se pudo recuperar la query: este contenido no sirve como respuesta.
+    // Lo marcamos como fallo "transitorio" para que el flujo pruebe el próximo modelo.
+    return { ok: false, status: 429, transient: true, data: { error: { message: 'El modelo devolvió sintaxis de tool-call sin ejecutar' } } };
+  }
+
   return result;
 }
+
 
 // Extraer texto OCR del mensaje si existe
 function extractOCRFromMessages(messages) {
@@ -178,7 +253,15 @@ function extractContent(result) {
   const content = result?.data?.choices?.[0]?.message?.content;
   if (typeof content !== 'string') return null;
   const trimmed = content.trim();
-  return trimmed.length ? trimmed : null;
+  if (!trimmed.length) return null;
+  // Red de seguridad final: si por algún motivo llegó hasta acá sintaxis de
+  // tool-call sin resolver (ej. en la rama de visión, que no pasa por
+  // callWithSearch), tampoco la mostramos como respuesta válida.
+  if (LEAKED_TOOLCALL_RE.test(trimmed)) {
+    console.warn('extractContent: contenido descartado por sintaxis de tool-call sin resolver.');
+    return null;
+  }
+  return trimmed;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -188,7 +271,7 @@ function extractContent(result) {
 // como para la respuesta JSON clásica (se consume hasta el 'done').
 // ────────────────────────────────────────────────────────────
 
-async function* runVisionFlow({ orKey, groqKey, messages, serperKey }) {
+async function* runVisionFlow({ orKey, groqKey, nvidiaKey, messages, serperKey }) {
   const ocrText = extractOCRFromMessages(messages);
   let lastError = null;
 
@@ -212,6 +295,26 @@ async function* runVisionFlow({ orKey, groqKey, messages, serperKey }) {
       // Para errores duros (no 429/404) igual seguimos probando el próximo
       // modelo de visión — a diferencia del flujo de texto, acá preferimos
       // agotar toda la lista antes de rendirnos, porque son pocos modelos.
+    }
+  }
+
+  // NVIDIA NIM — mismo Kimi K2.6, con soporte de imagen nativo confirmado.
+  if (nvidiaKey) {
+    for (const model of NVIDIA_VISION_MODELS) {
+      yield { type: 'status', message: `Analizando la imagen con ${friendlyModelName(model)}…` };
+      let result;
+      try { result = await callNvidia(nvidiaKey, model, messages); }
+      catch (err) { lastError = 'NVIDIA: ' + err.message; continue; }
+
+      if (result.ok) {
+        const content = extractContent(result);
+        if (content) { yield { type: 'done', reply: content }; return; }
+        lastError = `${model} (NVIDIA): respuesta vacía`;
+        console.warn(`Visión NVIDIA (${model}) devolvió contenido vacío.`);
+        continue;
+      }
+      lastError = result.data.error?.message || `NVIDIA ${result.status} (${model})`;
+      console.warn(`Visión NVIDIA falló (${model}):`, lastError);
     }
   }
 
@@ -269,7 +372,7 @@ async function* runVisionFlow({ orKey, groqKey, messages, serperKey }) {
   };
 }
 
-async function* runTextFlow({ groqKey, orKey, messages, serperKey }) {
+async function* runTextFlow({ groqKey, orKey, nvidiaKey, messages, serperKey }) {
   let lastError = null;
 
   if (groqKey) {
@@ -308,6 +411,25 @@ async function* runTextFlow({ groqKey, orKey, messages, serperKey }) {
     }
   }
 
+  // NVIDIA NIM — tercer motor de respaldo (sin web search: no soporta tool-calling acá).
+  if (nvidiaKey) {
+    for (const model of NVIDIA_MODELS) {
+      yield { type: 'status', message: `Cambiando a ${friendlyModelName(model)}…` };
+      let result;
+      try { result = await callNvidia(nvidiaKey, model, messages); }
+      catch (err) { lastError = 'NVIDIA: ' + err.message; continue; }
+      if (result.ok) {
+        const content = extractContent(result);
+        if (content) { yield { type: 'done', reply: content }; return; }
+        lastError = `${model} (NVIDIA): respuesta vacía`;
+        console.warn(`NVIDIA (${model}) devolvió contenido vacío — se sigue probando.`);
+        continue;
+      }
+      lastError = result.data.error?.message || `NVIDIA ${result.status} (${model})`;
+      if (result.status !== 429 && result.status !== 404) break;
+    }
+  }
+
   yield { type: 'error', error: 'Todos los motores están saturados. (' + lastError + ')' };
 }
 
@@ -320,11 +442,12 @@ export async function onRequestPost(context) {
   const jsonRes = (status, obj) =>
     new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
-  const groqKey  = context.env.GROQ_API_KEY;
-  const orKey    = context.env.OPENROUTER_API_KEY;
+  const groqKey   = context.env.GROQ_API_KEY;
+  const orKey     = context.env.OPENROUTER_API_KEY;
+  const nvidiaKey = context.env.NVIDIA_API_KEY;
   const serperKey = context.env.SERPER_API_KEY;
 
-  if (!groqKey && !orKey) {
+  if (!groqKey && !orKey && !nvidiaKey) {
     return jsonRes(500, { error: 'No hay ninguna API key configurada.' });
   }
 
@@ -336,8 +459,8 @@ export async function onRequestPost(context) {
   if (!messages?.length) return jsonRes(400, { error: 'Falta messages' });
 
   const gen = hasImages
-    ? runVisionFlow({ orKey, groqKey, messages, serperKey })
-    : runTextFlow({ groqKey, orKey, messages, serperKey });
+    ? runVisionFlow({ orKey, groqKey, nvidiaKey, messages, serperKey })
+    : runTextFlow({ groqKey, orKey, nvidiaKey, messages, serperKey });
 
   // ── Modo streaming (SSE) — lo que usa el chat principal ──
   if (stream === true) {
